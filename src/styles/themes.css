@@ -1,0 +1,265 @@
+/* Theme CSS variables — default dark theme */
+@theme {
+  --color-bg: var(--theme-bg, #1a1b26);
+  --color-bg-secondary: var(--theme-bg-secondary, #24283b);
+  --color-bg-tertiary: var(--theme-bg-tertiary, #2f3549);
+  --color-text: var(--theme-text, #c0caf5);
+  --color-text-secondary: var(--theme-text-secondary, #a9b1d6);
+  --color-text-muted: var(--theme-text-muted, #565f89);
+  --color-accent: var(--theme-accent, #7aa2f7);
+  --color-accent-hover: var(--theme-accent-hover, #89b4fa);
+  --color-border: var(--theme-border, #3b4261);
+  --color-border-focus: var(--theme-border-focus, #7aa2f7);
+  --color-success: var(--theme-success, #9ece6a);
+  --color-warning: var(--theme-warning, #e0af68);
+  --color-error: var(--theme-error, #f7768e);
+  --color-info: var(--theme-info, #7dcfff);
+
+  /* Chat-specific */
+  --color-user-bubble: var(--theme-user-bubble, #3b4261);
+  --color-assistant-bubble: var(--theme-assistant-bubble, #1f2335);
+  --color-tool-call-bg: var(--theme-tool-call-bg, #292e42);
+  --color-code-bg: var(--theme-code-bg, #1f2335);
+}
+
+/* Tokyo Night (default) */
+:root {
+  --theme-bg: #1a1b26;
+  --theme-bg-secondary: #24283b;
+  --theme-bg-tertiary: #2f3549;
+  --theme-text: #c0caf5;
+  --theme-text-secondary: #a9b1d6;
+  --theme-text-muted: #565f89;
+  --theme-accent: #7aa2f7;
+  --theme-accent-hover: #89b4fa;
+  --theme-border: #3b4261;
+  --theme-border-focus: #7aa2f7;
+  --theme-success: #9ece6a;
+  --theme-warning: #e0af68;
+  --theme-error: #f7768e;
+  --theme-info: #7dcfff;
+  --theme-user-bubble: #3b4261;
+  --theme-assistant-bubble: #1f2335;
+  --theme-tool-call-bg: #292e42;
+  --theme-code-bg: #1f2335;
+}
+
+/* Dracula */
+[data-theme="dracula"] {
+  --theme-bg: #282a36;
+  --theme-bg-secondary: #44475a;
+  --theme-bg-tertiary: #383a4a;
+  --theme-text: #f8f8f2;
+  --theme-text-secondary: #d4d4d4;
+  --theme-text-muted: #6272a4;
+  --theme-accent: #bd93f9;
+  --theme-accent-hover: #caa4fa;
+  --theme-border: #44475a;
+  --theme-border-focus: #bd93f9;
+  --theme-success: #50fa7b;
+  --theme-warning: #f1fa8c;
+  --theme-error: #ff5555;
+  --theme-info: #8be9fd;
+  --theme-user-bubble: #44475a;
+  --theme-assistant-bubble: #21222c;
+  --theme-tool-call-bg: #383a4a;
+  --theme-code-bg: #21222c;
+}
+
+/* Catppuccin Mocha */
+[data-theme="catppuccin-mocha"] {
+  --theme-bg: #1e1e2e;
+  --theme-bg-secondary: #313244;
+  --theme-bg-tertiary: #45475a;
+  --theme-text: #cdd6f4;
+  --theme-text-secondary: #bac2de;
+  --theme-text-muted: #6c7086;
+  --theme-accent: #cba6f7;
+  --theme-accent-hover: #d4b4fa;
+  --theme-border: #45475a;
+  --theme-border-focus: #cba6f7;
+  --theme-success: #a6e3a1;
+  --theme-warning: #f9e2af;
+  --theme-error: #f38ba8;
+  --theme-info: #89dceb;
+  --theme-user-bubble: #313244;
+  --theme-assistant-bubble: #181825;
+  --theme-tool-call-bg: #313244;
+  --theme-code-bg: #181825;
+}
+
+/* Catppuccin Latte (light) */
+[data-theme="catppuccin-latte"] {
+  --theme-bg: #eff1f5;
+  --theme-bg-secondary: #e6e9ef;
+  --theme-bg-tertiary: #dce0e8;
+  --theme-text: #4c4f69;
+  --theme-text-secondary: #5c5f77;
+  --theme-text-muted: #9ca0b0;
+  --theme-accent: #8839ef;
+  --theme-accent-hover: #9c4df5;
+  --theme-border: #ccd0da;
+  --theme-border-focus: #8839ef;
+  --theme-success: #40a02b;
+  --theme-warning: #df8e1d;
+  --theme-error: #d20f39;
+  --theme-info: #04a5e5;
+  --theme-user-bubble: #dce0e8;
+  --theme-assistant-bubble: #eff1f5;
+  --theme-tool-call-bg: #e6e9ef;
+  --theme-code-bg: #e6e9ef;
+}
+
+/* Nord */
+[data-theme="nord"] {
+  --theme-bg: #2e3440;
+  --theme-bg-secondary: #3b4252;
+  --theme-bg-tertiary: #434c5e;
+  --theme-text: #eceff4;
+  --theme-text-secondary: #d8dee9;
+  --theme-text-muted: #616e88;
+  --theme-accent: #88c0d0;
+  --theme-accent-hover: #8fbcbb;
+  --theme-border: #434c5e;
+  --theme-border-focus: #88c0d0;
+  --theme-success: #a3be8c;
+  --theme-warning: #ebcb8b;
+  --theme-error: #bf616a;
+  --theme-info: #81a1c1;
+  --theme-user-bubble: #434c5e;
+  --theme-assistant-bubble: #2e3440;
+  --theme-tool-call-bg: #3b4252;
+  --theme-code-bg: #2e3440;
+}
+
+/* One Dark */
+[data-theme="one-dark"] {
+  --theme-bg: #282c34;
+  --theme-bg-secondary: #21252b;
+  --theme-bg-tertiary: #2c313a;
+  --theme-text: #abb2bf;
+  --theme-text-secondary: #9da5b4;
+  --theme-text-muted: #5c6370;
+  --theme-accent: #61afef;
+  --theme-accent-hover: #74b8f2;
+  --theme-border: #3e4451;
+  --theme-border-focus: #61afef;
+  --theme-success: #98c379;
+  --theme-warning: #e5c07b;
+  --theme-error: #e06c75;
+  --theme-info: #56b6c2;
+  --theme-user-bubble: #2c313a;
+  --theme-assistant-bubble: #21252b;
+  --theme-tool-call-bg: #2c313a;
+  --theme-code-bg: #21252b;
+}
+
+/* Gruvbox Dark */
+[data-theme="gruvbox-dark"] {
+  --theme-bg: #282828;
+  --theme-bg-secondary: #3c3836;
+  --theme-bg-tertiary: #504945;
+  --theme-text: #ebdbb2;
+  --theme-text-secondary: #d5c4a1;
+  --theme-text-muted: #928374;
+  --theme-accent: #fabd2f;
+  --theme-accent-hover: #fcd34d;
+  --theme-border: #504945;
+  --theme-border-focus: #fabd2f;
+  --theme-success: #b8bb26;
+  --theme-warning: #fe8019;
+  --theme-error: #fb4934;
+  --theme-info: #83a598;
+  --theme-user-bubble: #3c3836;
+  --theme-assistant-bubble: #1d2021;
+  --theme-tool-call-bg: #3c3836;
+  --theme-code-bg: #1d2021;
+}
+
+/* Kanagawa */
+[data-theme="kanagawa"] {
+  --theme-bg: #1f1f28;
+  --theme-bg-secondary: #2a2a37;
+  --theme-bg-tertiary: #363646;
+  --theme-text: #dcd7ba;
+  --theme-text-secondary: #c8c093;
+  --theme-text-muted: #727169;
+  --theme-accent: #7e9cd8;
+  --theme-accent-hover: #7fb4ca;
+  --theme-border: #54546d;
+  --theme-border-focus: #7e9cd8;
+  --theme-success: #98bb6c;
+  --theme-warning: #e6c384;
+  --theme-error: #ff5d62;
+  --theme-info: #7fb4ca;
+  --theme-user-bubble: #2a2a37;
+  --theme-assistant-bubble: #16161d;
+  --theme-tool-call-bg: #2a2a37;
+  --theme-code-bg: #16161d;
+}
+
+/* Monokai Pro */
+[data-theme="monokai-pro"] {
+  --theme-bg: #2d2a2e;
+  --theme-bg-secondary: #403e41;
+  --theme-bg-tertiary: #5b595c;
+  --theme-text: #fcfcfa;
+  --theme-text-secondary: #c1c0c0;
+  --theme-text-muted: #727072;
+  --theme-accent: #ffd866;
+  --theme-accent-hover: #ffe08a;
+  --theme-border: #49474a;
+  --theme-border-focus: #ffd866;
+  --theme-success: #a9dc76;
+  --theme-warning: #ffd866;
+  --theme-error: #ff6188;
+  --theme-info: #78dce8;
+  --theme-user-bubble: #403e41;
+  --theme-assistant-bubble: #221f22;
+  --theme-tool-call-bg: #403e41;
+  --theme-code-bg: #221f22;
+}
+
+/* Rose Pine */
+[data-theme="rose-pine"] {
+  --theme-bg: #191724;
+  --theme-bg-secondary: #1f1d2e;
+  --theme-bg-tertiary: #26233a;
+  --theme-text: #e0def4;
+  --theme-text-secondary: #908caa;
+  --theme-text-muted: #6e6a86;
+  --theme-accent: #c4a7e7;
+  --theme-accent-hover: #d1b8ee;
+  --theme-border: #26233a;
+  --theme-border-focus: #c4a7e7;
+  --theme-success: #9ccfd8;
+  --theme-warning: #f6c177;
+  --theme-error: #eb6f92;
+  --theme-info: #9ccfd8;
+  --theme-user-bubble: #26233a;
+  --theme-assistant-bubble: #191724;
+  --theme-tool-call-bg: #1f1d2e;
+  --theme-code-bg: #191724;
+}
+
+/* Solarized Dark */
+[data-theme="solarized-dark"] {
+  --theme-bg: #002b36;
+  --theme-bg-secondary: #073642;
+  --theme-bg-tertiary: #0a4050;
+  --theme-text: #839496;
+  --theme-text-secondary: #93a1a1;
+  --theme-text-muted: #586e75;
+  --theme-accent: #268bd2;
+  --theme-accent-hover: #2aa2f5;
+  --theme-border: #073642;
+  --theme-border-focus: #268bd2;
+  --theme-success: #859900;
+  --theme-warning: #b58900;
+  --theme-error: #dc322f;
+  --theme-info: #2aa198;
+  --theme-user-bubble: #073642;
+  --theme-assistant-bubble: #00212b;
+  --theme-tool-call-bg: #073642;
+  --theme-code-bg: #00212b;
+}
