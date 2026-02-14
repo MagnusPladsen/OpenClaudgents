@@ -1,0 +1,63 @@
+{
+  "productName": "OpenClaudgents",
+  "version": "0.1.0",
+  "identifier": "com.openclaudgents.app",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "OpenClaudgents",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 500,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "appimage", "deb"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "Multi-agent Claude Code orchestrator",
+    "longDescription": "OpenClaudgents is an open-source desktop GUI for managing multiple Claude Code agents. It provides a Codex-like experience with session management, git worktree isolation, agent team visualization, and context budget tracking.",
+    "copyright": "MIT License",
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "dmg": {
+        "appPosition": { "x": 180, "y": 170 },
+        "applicationFolderPosition": { "x": 480, "y": 170 },
+        "windowSize": { "width": 660, "height": 400 }
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.1-0",
+          "libayatana-appindicator3-1",
+          "librsvg2-2"
+        ],
+        "section": "devel"
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  }
+}
