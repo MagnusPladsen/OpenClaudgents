@@ -1,3 +1,5 @@
+import { useState, useRef, useCallback } from "react";
+import { ActivityIndicator } from "./ActivityIndicator";
 import type { Session } from "../../lib/types";
 
 interface SessionItemProps {
@@ -5,24 +7,47 @@ interface SessionItemProps {
   isActive: boolean;
   isPinned?: boolean;
   onTogglePin?: () => void;
+  onRename?: (newName: string) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   onClick: () => void;
 }
 
-export function SessionItem({ session, isActive, isPinned, onTogglePin, onClick }: SessionItemProps) {
-  const statusColor =
-    session.status === "active"
-      ? "bg-success"
-      : session.status === "waiting_input"
-        ? "bg-warning"
-        : session.status === "error"
-          ? "bg-error"
-          : "bg-text-muted";
+export function SessionItem({
+  session,
+  isActive,
+  isPinned,
+  onTogglePin,
+  onRename,
+  onContextMenu,
+  onClick,
+}: SessionItemProps) {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const isLive = session.status === "active";
+  const startRename = useCallback(() => {
+    setRenameValue(session.name || `Session ${session.id.slice(0, 8)}`);
+    setIsRenaming(true);
+    // Focus after next render
+    setTimeout(() => inputRef.current?.select(), 0);
+  }, [session.name, session.id]);
+
+  const commitRename = useCallback(() => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== session.name && onRename) {
+      onRename(trimmed);
+    }
+    setIsRenaming(false);
+  }, [renameValue, session.name, onRename]);
+
+  const cancelRename = useCallback(() => {
+    setIsRenaming(false);
+  }, []);
 
   return (
     <button
       onClick={onClick}
+      onContextMenu={onContextMenu}
       className={`group relative mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all duration-200 ${
         isActive
           ? "bg-accent/10 text-text shadow-sm shadow-accent/10"
@@ -33,14 +58,6 @@ export function SessionItem({ session, isActive, isPinned, onTogglePin, onClick 
       {isActive && (
         <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent shadow-sm shadow-accent/30" />
       )}
-
-      {/* Status dot with ring cutout effect */}
-      <span className="relative flex-shrink-0">
-        <span className={`block h-2.5 w-2.5 rounded-full ring-2 ring-bg-secondary ${statusColor}`} />
-        {isLive && (
-          <span className={`absolute inset-0 animate-ping rounded-full ${statusColor} opacity-40`} />
-        )}
-      </span>
 
       {/* Worktree badge */}
       {session.worktreePath && (
@@ -55,10 +72,35 @@ export function SessionItem({ session, isActive, isPinned, onTogglePin, onClick 
         </span>
       )}
 
-      {/* Session name or fallback */}
-      <span className="min-w-0 flex-1 truncate font-medium">
-        {session.name || `Session ${session.id.slice(0, 8)}`}
-      </span>
+      {/* Session name or inline rename input */}
+      {isRenaming ? (
+        <input
+          ref={inputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commitRename();
+            if (e.key === "Escape") cancelRename();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          className="min-w-0 flex-1 rounded border border-border-focus bg-bg px-1 py-0.5 text-sm font-medium text-text outline-none"
+          autoFocus
+        />
+      ) : (
+        <span
+          className="min-w-0 flex-1 truncate font-medium"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            startRename();
+          }}
+        >
+          {session.name || `Session ${session.id.slice(0, 8)}`}
+        </span>
+      )}
+
+      {/* Activity indicator */}
+      <ActivityIndicator activityState={session.activityState} />
 
       {/* Pin icon */}
       {onTogglePin && (
@@ -97,6 +139,9 @@ export function SessionItem({ session, isActive, isPinned, onTogglePin, onClick 
     </button>
   );
 }
+
+// Expose startRename trigger for context menu
+SessionItem.displayName = "SessionItem";
 
 function abbreviateModel(model: string): string {
   if (model.includes("sonnet")) return "Son";

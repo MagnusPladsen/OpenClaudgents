@@ -30,8 +30,8 @@ export async function createSession(
   projectPath: string,
   model?: string,
 ): Promise<Session> {
-  const session = await invoke<Omit<Session, "pinned">>("create_session", { projectPath, model });
-  return { ...session, pinned: false };
+  const session = await invoke<Omit<Session, "pinned" | "activityState" | "archived">>("create_session", { projectPath, model });
+  return { ...session, pinned: false, activityState: "idle", archived: false };
 }
 
 export async function sendMessage(
@@ -64,8 +64,8 @@ export async function resumeSession(
   claudeSessionId: string,
   projectPath: string,
 ): Promise<Session> {
-  const session = await invoke<Omit<Session, "pinned">>("resume_session", { claudeSessionId, projectPath });
-  return { ...session, pinned: false };
+  const session = await invoke<Omit<Session, "pinned" | "activityState" | "archived">>("resume_session", { claudeSessionId, projectPath });
+  return { ...session, pinned: false, activityState: "idle", archived: false };
 }
 
 // --- Git & Worktree Commands ---

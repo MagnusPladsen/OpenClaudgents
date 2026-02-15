@@ -48,6 +48,7 @@ export function useStreamingChat() {
   const resetStreamingText = useChatStore((s) => s.resetStreamingText);
   const addMessage = useChatStore((s) => s.addMessage);
   const updateSession = useSessionStore((s) => s.updateSession);
+  const setActivityState = useSessionStore((s) => s.setActivityState);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
 
   useEffect(() => {
@@ -57,7 +58,9 @@ export function useStreamingChat() {
     unlisteners.push(
       listen<TextDeltaEvent>("claude:text_delta", (event) => {
         const { sessionId, text } = event.payload;
-        // Only process events for the active session
+        // Update activity state for any session
+        setActivityState(sessionId, "streaming");
+        // Only process chat events for the active session
         if (sessionId === activeSessionId) {
           appendStreamingText(text);
           setStreaming(true);
@@ -69,6 +72,7 @@ export function useStreamingChat() {
     unlisteners.push(
       listen<MessageCompleteEvent>("claude:message_complete", (event) => {
         const { sessionId } = event.payload;
+        setActivityState(sessionId, "idle");
         if (sessionId === activeSessionId) {
           // Move streaming text into a proper message
           const streamingText = useChatStore.getState().streamingText;
@@ -91,8 +95,8 @@ export function useStreamingChat() {
     // Tool starts
     unlisteners.push(
       listen<ToolStartEvent>("claude:tool_start", (event) => {
-        // Tool call tracking — will be enhanced later
-        console.debug("[tool_start]", event.payload);
+        const { sessionId } = event.payload;
+        setActivityState(sessionId, "tool_running");
       }),
     );
 
@@ -120,10 +124,24 @@ export function useStreamingChat() {
         updateSession(sessionId, {
           status: status as "active" | "paused" | "completed" | "error",
         });
+
+        // Map session status to activity state
+        if (status === "waiting_input") {
+          setActivityState(sessionId, "awaiting_input");
+        } else if (status === "active") {
+          // "active" without a delta yet means thinking
+          setActivityState(sessionId, "thinking");
+        } else if (status === "completed" || status === "paused") {
+          setActivityState(sessionId, "idle");
+        }
+
         // On error, clean up streaming state
-        if (status === "error" && sessionId === activeSessionId) {
-          resetStreamingText();
-          setStreaming(false);
+        if (status === "error") {
+          setActivityState(sessionId, "idle");
+          if (sessionId === activeSessionId) {
+            resetStreamingText();
+            setStreaming(false);
+          }
         }
       }),
     );
@@ -156,5 +174,6 @@ export function useStreamingChat() {
     resetStreamingText,
     addMessage,
     updateSession,
+    setActivityState,
   ]);
 }
