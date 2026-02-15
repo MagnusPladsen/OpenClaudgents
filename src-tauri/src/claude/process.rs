@@ -179,16 +179,18 @@ impl ProcessManager {
             let parser = StreamParser::new();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                // Try to extract Claude's session ID from the stream
+                // Try to extract Claude's session ID from the stream.
+                // The CLI puts session_id at the top level of every NDJSON line.
+                // We capture it from the first event that has it (typically the init event).
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) {
-                    // The session_id appears in the initial system message
                     if let Some(sid_val) = val
-                        .get("message")
-                        .and_then(|m| m.get("session_id"))
+                        .get("session_id")
                         .and_then(|s| s.as_str())
                     {
                         let mut map = session_map.lock().await;
-                        map.insert(sid.clone(), sid_val.to_string());
+                        if !map.contains_key(&sid) {
+                            map.insert(sid.clone(), sid_val.to_string());
+                        }
                     }
                 }
 
