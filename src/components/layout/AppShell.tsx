@@ -10,6 +10,7 @@ import { SessionPickerDialog } from "../common/SessionPickerDialog";
 import { RewindDialog } from "../common/RewindDialog";
 import { RestoreDialog } from "../common/RestoreDialog";
 import { PluginManagerDialog } from "../common/PluginManagerDialog";
+import { McpManagerDialog } from "../common/McpManagerDialog";
 import { SettingsDialog } from "../settings/SettingsDialog";
 import { ToastContainer } from "../common/Toast";
 import { useSessionStore } from "../../stores/sessionStore";
@@ -31,6 +32,7 @@ export function AppShell() {
   const [showRewindDialog, setShowRewindDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showPluginManager, setShowPluginManager] = useState(false);
+  const [showMcpManager, setShowMcpManager] = useState(false);
   const [previewInitialTab, setPreviewInitialTab] = useState<Tab | null>(null);
   const [welcomeKey, setWelcomeKey] = useState(0);
 
@@ -96,6 +98,7 @@ export function AppShell() {
     showRewindDialog: () => setShowRewindDialog(true),
     showRestoreDialog: () => setShowRestoreDialog(true),
     showPluginManager: () => setShowPluginManager(true),
+    showMcpManager: () => setShowMcpManager(true),
     setTheme,
     setPlanMode: (enabled: boolean) => useChatStore.getState().setPlanMode(enabled),
     getPlanMode: () => useChatStore.getState().planMode,
@@ -399,6 +402,12 @@ export function AppShell() {
       <PluginManagerDialog
         isOpen={showPluginManager}
         onClose={() => setShowPluginManager(false)}
+      />
+
+      {/* MCP manager dialog (/mcp) */}
+      <McpManagerDialog
+        isOpen={showMcpManager}
+        onClose={() => setShowMcpManager(false)}
       />
 
       {/* Toast notifications */}

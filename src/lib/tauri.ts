@@ -185,6 +185,24 @@ export async function removePlugin(name: string): Promise<string> {
   return invoke("remove_plugin", { name });
 }
 
+// --- MCP Server Management Commands ---
+
+export async function addMcpServer(
+  name: string,
+  command: string,
+  args: string[],
+): Promise<void> {
+  return invoke("add_mcp_server", { name, command, args });
+}
+
+export async function removeMcpServer(name: string): Promise<void> {
+  return invoke("remove_mcp_server", { name });
+}
+
+export async function toggleMcpServer(name: string): Promise<boolean> {
+  return invoke("toggle_mcp_server", { name });
+}
+
 // --- Agent Team Commands ---
 
 export async function getAgentTeams(): Promise<AgentTeam[]> {
