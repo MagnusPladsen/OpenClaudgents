@@ -20,6 +20,7 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
   const messages = useChatStore((s) => s.messages);
   const addMessage = useChatStore((s) => s.addMessage);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const planMode = useChatStore((s) => s.planMode);
   const [welcomeError, setWelcomeError] = useState<string | null>(null);
 
   const activeSession = useSessionStore((s) => {
@@ -105,6 +106,11 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
           {activeSession?.model && (
             <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
               {activeSession.model.includes("sonnet") ? "Sonnet" : activeSession.model.includes("opus") ? "Opus" : "Haiku"}
+            </span>
+          )}
+          {planMode && (
+            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
+              Plan Mode
             </span>
           )}
           <span className="text-xs text-text-muted">

@@ -114,6 +114,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 { keys: "⌘K", action: "Command palette" },
                 { keys: "⌘J", action: "Toggle terminal" },
                 { keys: "⌘,", action: "Settings" },
+                { keys: "Esc Esc", action: "Rewind" },
                 { keys: "Enter", action: "Send message" },
                 { keys: "Shift+Enter", action: "New line" },
               ].map((shortcut) => (
