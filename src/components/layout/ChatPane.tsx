@@ -30,9 +30,18 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
         setActiveSession(session.id);
       } catch (err) {
         console.error("Failed to create session:", err);
+        // Show error in chat so user can see what went wrong
+        addMessage({
+          uuid: crypto.randomUUID(),
+          parentUuid: null,
+          role: "system",
+          content: `Failed to create session: ${err}`,
+          timestamp: new Date().toISOString(),
+          isSidechain: false,
+        });
       }
     },
-    [addSession, setActiveSession],
+    [addSession, setActiveSession, addMessage],
   );
 
   const handleSendMessage = useCallback(
@@ -56,6 +65,15 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
         });
       } catch (err) {
         console.error("Failed to send message:", err);
+        // Show error as a system message so the user knows it failed
+        addMessage({
+          uuid: crypto.randomUUID(),
+          parentUuid: null,
+          role: "system",
+          content: `Failed to send message: ${err}`,
+          timestamp: new Date().toISOString(),
+          isSidechain: false,
+        });
       }
     },
     [activeSessionId, addMessage],

@@ -29,7 +29,9 @@ function App() {
       {cliMissing && (
         <div className="flex items-center justify-between bg-warning/20 px-4 py-2 text-xs text-warning">
           <span>
-            Claude CLI not found. Install it with{" "}
+            Claude CLI not found. Install via{" "}
+            <code className="rounded bg-black/20 px-1">brew install claude-code</code>
+            {" "}or{" "}
             <code className="rounded bg-black/20 px-1">npm install -g @anthropic-ai/claude-code</code>
             {" "}then restart.
           </span>

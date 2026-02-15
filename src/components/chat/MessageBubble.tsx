@@ -7,24 +7,27 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const isSystem = message.role === "system";
 
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[85%] rounded-lg px-4 py-3 ${
-          isUser
-            ? "bg-user-bubble text-text"
-            : "bg-assistant-bubble text-text"
+          isSystem
+            ? "border border-error/30 bg-error/10 text-text"
+            : isUser
+              ? "bg-user-bubble text-text"
+              : "bg-assistant-bubble text-text"
         } ${message.isStreaming ? "border border-accent/30" : ""}`}
       >
         {/* Role label */}
         <div className="mb-1 flex items-center gap-2">
           <span
             className={`text-xs font-medium ${
-              isUser ? "text-accent" : "text-info"
+              isSystem ? "text-error" : isUser ? "text-accent" : "text-info"
             }`}
           >
-            {isUser ? "You" : "Claude"}
+            {isSystem ? "Error" : isUser ? "You" : "Claude"}
           </span>
           {message.isStreaming && (
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />
