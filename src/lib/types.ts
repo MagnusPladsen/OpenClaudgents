@@ -14,6 +14,8 @@ export interface Session {
   teamRole: "lead" | "teammate" | null;
   parentSessionId: string | null;
   pinned: boolean;
+  activityState: "idle" | "thinking" | "streaming" | "tool_running" | "awaiting_input";
+  archived: boolean;
 }
 
 export interface ChatMessage {

@@ -50,6 +50,8 @@ export function Sidebar({ onNewSession }: SidebarProps) {
             teamRole: null,
             parentSessionId: null,
             pinned: false,
+            activityState: "idle",
+            archived: false,
           });
         }
       })
