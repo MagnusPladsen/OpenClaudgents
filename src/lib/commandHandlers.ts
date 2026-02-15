@@ -28,6 +28,7 @@ export interface CommandContext {
   switchModel: (model: string) => Promise<void>;
   showRestoreDialog: () => void;
   showPluginManager: () => void;
+  showMcpManager: () => void;
 }
 
 /**
@@ -66,7 +67,7 @@ export async function executeCommand(
       return true;
 
     case "mcp":
-      ctx.openPreviewTab("mcp");
+      ctx.showMcpManager();
       return true;
 
     case "settings":
