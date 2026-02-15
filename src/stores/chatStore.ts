@@ -6,6 +6,7 @@ interface ChatState {
   isStreaming: boolean;
   streamingText: string;
   compactionCount: number;
+  planMode: boolean;
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
   updateMessage: (uuid: string, updates: Partial<ChatMessage>) => void;
@@ -14,6 +15,8 @@ interface ChatState {
   resetStreamingText: () => void;
   clearMessages: () => void;
   incrementCompaction: () => void;
+  setPlanMode: (enabled: boolean) => void;
+  removeLastMessages: (count: number) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -21,6 +24,7 @@ export const useChatStore = create<ChatState>((set) => ({
   isStreaming: false,
   streamingText: "",
   compactionCount: 0,
+  planMode: false,
 
   setMessages: (messages) => set({ messages }),
 
@@ -45,4 +49,11 @@ export const useChatStore = create<ChatState>((set) => ({
 
   incrementCompaction: () =>
     set((state) => ({ compactionCount: state.compactionCount + 1 })),
+
+  setPlanMode: (enabled) => set({ planMode: enabled }),
+
+  removeLastMessages: (count) =>
+    set((state) => ({
+      messages: state.messages.slice(0, Math.max(0, state.messages.length - count)),
+    })),
 }));

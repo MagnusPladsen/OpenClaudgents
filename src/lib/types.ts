@@ -117,6 +117,13 @@ export interface FileDiffContent {
   language: string;
 }
 
+export interface CustomSkill {
+  name: string;
+  description: string;
+  source: "personal" | "project";
+  filePath: string;
+}
+
 export interface AppSettings {
   theme: string;
   fontSize: number;

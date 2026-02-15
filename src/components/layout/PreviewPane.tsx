@@ -12,18 +12,26 @@ import { TeamPanel } from "../agents/TeamPanel";
 import { McpStatusPanel } from "../agents/McpStatusPanel";
 import type { DiffSummary } from "../../lib/types";
 
+export type Tab = "diff" | "context" | "instructions" | "tasks" | "agents" | "mcp" | "worktrees";
+
 interface PreviewPaneProps {
   onClose: () => void;
+  initialTab?: Tab;
 }
 
-type Tab = "diff" | "context" | "instructions" | "tasks" | "agents" | "mcp" | "worktrees";
-
-export function PreviewPane({ onClose }: PreviewPaneProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("diff");
+export function PreviewPane({ onClose, initialTab }: PreviewPaneProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab ?? "diff");
   const [diffData, setDiffData] = useState<DiffSummary | null>(null);
   const activeSession = useSessionStore((s) => {
     return s.sessions.find((sess) => sess.id === s.activeSessionId);
   });
+
+  // Switch tab when initialTab prop changes externally (e.g., from /context command)
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const projectPath = activeSession?.worktreePath || activeSession?.projectPath;
   const gitStatus = useGitStatus(projectPath);

@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useChatStore } from "../../stores/chatStore";
-import { matchCommands } from "../../lib/commands";
-import type { SlashCommand } from "../../lib/commands";
+import { matchCommandsGrouped } from "../../lib/commands";
+import { discoverCustomSkills } from "../../lib/tauri";
+import { useSessionStore } from "../../stores/sessionStore";
+import type { SlashCommand, GroupedCommands } from "../../lib/commands";
 
 interface ComposerProps {
   sessionId: string;
@@ -12,27 +14,47 @@ interface ComposerProps {
 export function Composer({ onSend, disabled }: ComposerProps) {
   const [text, setText] = useState("");
   const [isFocused, setIsFocused] = useState(false);
-  const [suggestions, setSuggestions] = useState<SlashCommand[]>([]);
+  const [groups, setGroups] = useState<GroupedCommands[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [customSkills, setCustomSkills] = useState<SlashCommand[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const activeSessionId = useSessionStore((s) => s.activeSessionId);
+
+  // Discover custom skills on mount and when session changes
+  useEffect(() => {
+    const session = useSessionStore.getState().getActiveSession();
+    discoverCustomSkills(session?.projectPath)
+      .then((skills) => {
+        const mapped: SlashCommand[] = skills.map((s) => ({
+          name: s.name,
+          description: s.description,
+          category: "custom" as const,
+        }));
+        setCustomSkills(mapped);
+      })
+      .catch(() => setCustomSkills([]));
+  }, [activeSessionId]);
+
+  // Compute flat list of all commands for keyboard navigation
+  const flatCommands = groups.flatMap((g) => g.commands);
 
   // Update suggestions when text changes
   useEffect(() => {
     const trimmed = text.trim();
     // Only show suggestions when text is just a slash command (no spaces = still typing command name)
     if (trimmed.startsWith("/") && !trimmed.includes(" ")) {
-      const matches = matchCommands(trimmed);
-      setSuggestions(matches);
+      const matched = matchCommandsGrouped(trimmed, customSkills.length > 0 ? customSkills : undefined);
+      setGroups(matched);
       setSelectedIndex(0);
     } else {
-      setSuggestions([]);
+      setGroups([]);
     }
-  }, [text]);
+  }, [text, customSkills]);
 
   const acceptSuggestion = useCallback((command: SlashCommand) => {
     setText(`/${command.name}${command.args ? " " : ""}`);
-    setSuggestions([]);
+    setGroups([]);
     textareaRef.current?.focus();
   }, []);
 
@@ -42,7 +64,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
 
     onSend?.(trimmed);
     setText("");
-    setSuggestions([]);
+    setGroups([]);
 
     // Reset textarea height
     if (textareaRef.current) {
@@ -52,25 +74,25 @@ export function Composer({ onSend, disabled }: ComposerProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Handle suggestion navigation
-    if (suggestions.length > 0) {
+    if (flatCommands.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex((i) => (i + 1) % suggestions.length);
+        setSelectedIndex((i) => (i + 1) % flatCommands.length);
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex((i) => (i - 1 + suggestions.length) % suggestions.length);
+        setSelectedIndex((i) => (i - 1 + flatCommands.length) % flatCommands.length);
         return;
       }
       if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
         e.preventDefault();
-        acceptSuggestion(suggestions[selectedIndex]);
+        acceptSuggestion(flatCommands[selectedIndex]);
         return;
       }
       if (e.key === "Escape") {
         e.preventDefault();
-        setSuggestions([]);
+        setGroups([]);
         return;
       }
     }
@@ -91,6 +113,9 @@ export function Composer({ onSend, disabled }: ComposerProps) {
 
   const canSend = !disabled && text.trim().length > 0;
 
+  // Build flat index counter for tracking selected across groups
+  let flatIndex = 0;
+
   return (
     <div className="relative bg-bg/80 px-5 pb-5 pt-3 backdrop-blur-sm">
       {/* Streaming status pill */}
@@ -103,28 +128,44 @@ export function Composer({ onSend, disabled }: ComposerProps) {
         </div>
       )}
 
-      {/* Slash command autocomplete dropdown */}
-      {suggestions.length > 0 && (
-        <div className="absolute bottom-full left-5 right-5 mb-1 overflow-hidden rounded-xl border border-border/50 bg-bg-secondary shadow-xl shadow-black/20">
-          {suggestions.map((cmd, i) => (
-            <button
-              key={cmd.name}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                acceptSuggestion(cmd);
-              }}
-              className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                i === selectedIndex
-                  ? "bg-accent/10 text-accent"
-                  : "text-text-secondary hover:bg-bg-tertiary/50"
-              }`}
-            >
-              <span className="font-mono font-medium">/{cmd.name}</span>
-              {cmd.args && (
-                <span className="text-xs text-text-muted">{cmd.args}</span>
-              )}
-              <span className="ml-auto text-xs text-text-muted">{cmd.description}</span>
-            </button>
+      {/* Grouped slash command autocomplete dropdown */}
+      {groups.length > 0 && (
+        <div className="absolute bottom-full left-5 right-5 mb-1 max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-bg-secondary shadow-xl shadow-black/20">
+          {groups.map((group) => (
+            <div key={group.category}>
+              {/* Section header */}
+              <div className="flex items-center gap-2 px-4 py-1.5">
+                <span className="h-1 w-1 rounded-full bg-accent/60" />
+                <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+                  {group.label}
+                </span>
+              </div>
+              {group.commands.map((cmd) => {
+                const idx = flatIndex++;
+                const isSelected = idx === selectedIndex;
+                return (
+                  <button
+                    key={cmd.name}
+                    data-index={idx}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      acceptSuggestion(cmd);
+                    }}
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors ${
+                      isSelected
+                        ? "bg-accent/10 text-accent"
+                        : "text-text-secondary hover:bg-bg-tertiary/50"
+                    }`}
+                  >
+                    <span className="font-mono font-medium">/{cmd.name}</span>
+                    {cmd.args && (
+                      <span className="text-xs text-text-muted">{cmd.args}</span>
+                    )}
+                    <span className="ml-auto text-xs text-text-muted">{cmd.description}</span>
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </div>
       )}
@@ -148,7 +189,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
             onBlur={() => {
               setIsFocused(false);
               // Delay clearing suggestions to allow click handler to fire
-              setTimeout(() => setSuggestions([]), 150);
+              setTimeout(() => setGroups([]), 150);
             }}
             placeholder="Type a message... (/ for commands, Enter to send)"
             disabled={disabled}

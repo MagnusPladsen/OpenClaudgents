@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Session, ChatMessage, GitStatus, WorktreeInfo, DiffSummary, FileDiffContent, TodoItem, AgentTeam, McpServerInfo } from "./types";
+import type { Session, ChatMessage, GitStatus, WorktreeInfo, DiffSummary, FileDiffContent, TodoItem, AgentTeam, McpServerInfo, CustomSkill } from "./types";
 
 // --- Discovered session type (from Rust session_store) ---
 
@@ -157,6 +157,12 @@ export async function getTeamTasks(teamName: string): Promise<unknown[]> {
 
 export async function getClaudeTodos(): Promise<TodoItem[]> {
   return invoke("get_claude_todos");
+}
+
+// --- Custom Skill Discovery ---
+
+export async function discoverCustomSkills(projectPath?: string): Promise<CustomSkill[]> {
+  return invoke("discover_custom_skills", { projectPath: projectPath ?? null });
 }
 
 // --- Tauri Event Listeners (Rust → Frontend) ---

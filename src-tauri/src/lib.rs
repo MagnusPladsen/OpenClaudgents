@@ -42,6 +42,7 @@ pub fn run() {
             commands::settings::get_claude_md,
             commands::settings::update_claude_md,
             commands::settings::get_claude_todos,
+            commands::settings::discover_custom_skills,
             commands::agent_team::get_agent_teams,
             commands::agent_team::get_mcp_servers,
             commands::agent_team::get_team_tasks,
