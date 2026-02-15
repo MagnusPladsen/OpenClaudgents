@@ -128,6 +128,30 @@ export async function cleanupWorktrees(
   return invoke("cleanup_worktrees", { projectPath, maxAgeDays, maxCount });
 }
 
+// --- Git Log & Restore Commands ---
+
+export interface GitCommitInfo {
+  hash: string;
+  shortHash: string;
+  message: string;
+  author: string;
+  date: string;
+}
+
+export async function gitLogCommits(
+  path: string,
+  count?: number,
+): Promise<GitCommitInfo[]> {
+  return invoke("git_log_commits", { path, count: count ?? null });
+}
+
+export async function gitRestoreToCommit(
+  path: string,
+  commitHash: string,
+): Promise<string> {
+  return invoke("git_restore_to_commit", { path, commitHash });
+}
+
 // --- Settings & CLAUDE.md Commands ---
 
 export async function getClaudeMd(projectPath: string): Promise<string | null> {

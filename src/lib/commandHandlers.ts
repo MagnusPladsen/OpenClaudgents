@@ -26,6 +26,7 @@ export interface CommandContext {
   getPlanMode: () => boolean;
   showRewindDialog: () => void;
   switchModel: (model: string) => Promise<void>;
+  showRestoreDialog: () => void;
 }
 
 /**
@@ -187,6 +188,16 @@ export async function executeCommand(
           ? "Plan mode **enabled**. Messages will include a plan-mode flag."
           : "Plan mode **disabled**.",
       );
+      return true;
+    }
+
+    case "restore": {
+      const session = ctx.getActiveSession();
+      if (!session) {
+        ctx.addSystemMessage("No active session.");
+        return true;
+      }
+      ctx.showRestoreDialog();
       return true;
     }
 

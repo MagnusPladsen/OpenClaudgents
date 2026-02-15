@@ -8,13 +8,14 @@ import { TerminalDrawer } from "./TerminalDrawer";
 import { CommandPalette, type PaletteAction } from "../common/CommandPalette";
 import { SessionPickerDialog } from "../common/SessionPickerDialog";
 import { RewindDialog } from "../common/RewindDialog";
+import { RestoreDialog } from "../common/RestoreDialog";
 import { SettingsDialog } from "../settings/SettingsDialog";
 import { ToastContainer } from "../common/Toast";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { invoke } from "@tauri-apps/api/core";
-import { killSession, createSession } from "../../lib/tauri";
+import { killSession, createSession, gitRestoreToCommit } from "../../lib/tauri";
 import { parseSlashCommand, SLASH_COMMANDS } from "../../lib/commands";
 import { executeCommand } from "../../lib/commandHandlers";
 import type { CommandContext } from "../../lib/commandHandlers";
@@ -27,6 +28,7 @@ export function AppShell() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSessionPicker, setShowSessionPicker] = useState(false);
   const [showRewindDialog, setShowRewindDialog] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [previewInitialTab, setPreviewInitialTab] = useState<Tab | null>(null);
   const [welcomeKey, setWelcomeKey] = useState(0);
 
@@ -90,6 +92,7 @@ export function AppShell() {
     removeLastMessages: (count: number) => useChatStore.getState().removeLastMessages(count),
     showSessionPicker: () => setShowSessionPicker(true),
     showRewindDialog: () => setShowRewindDialog(true),
+    showRestoreDialog: () => setShowRestoreDialog(true),
     setTheme,
     setPlanMode: (enabled: boolean) => useChatStore.getState().setPlanMode(enabled),
     getPlanMode: () => useChatStore.getState().planMode,
@@ -192,6 +195,33 @@ export function AppShell() {
     }
   }, [addMessage]);
 
+  // Handle restore action from RestoreDialog
+  const handleRestore = useCallback(async (commitHash: string) => {
+    const session = useSessionStore.getState().getActiveSession();
+    if (!session) return;
+    const path = session.worktreePath || session.projectPath;
+    try {
+      const result = await gitRestoreToCommit(path, commitHash);
+      addMessage({
+        uuid: crypto.randomUUID(),
+        parentUuid: null,
+        role: "system",
+        content: `**Restore successful:** ${result}`,
+        timestamp: new Date().toISOString(),
+        isSidechain: false,
+      });
+    } catch (err) {
+      addMessage({
+        uuid: crypto.randomUUID(),
+        parentUuid: null,
+        role: "system",
+        content: `**Restore failed:** ${err}`,
+        timestamp: new Date().toISOString(),
+        isSidechain: false,
+      });
+    }
+  }, [addMessage]);
+
   // Keyboard shortcuts: Cmd+J (terminal), Cmd+K (palette), Esc+Esc (rewind)
   useEffect(() => {
     let lastEscTime = 0;
@@ -209,7 +239,7 @@ export function AppShell() {
         }
       }
       // Double-Esc opens rewind dialog (like vanilla Claude Code)
-      if (e.key === "Escape" && !showPalette && !showSettings && !showSessionPicker && !showRewindDialog) {
+      if (e.key === "Escape" && !showPalette && !showSettings && !showSessionPicker && !showRewindDialog && !showRestoreDialog) {
         const now = Date.now();
         if (now - lastEscTime < 500) {
           e.preventDefault();
@@ -222,7 +252,7 @@ export function AppShell() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [toggleTerminal, showPalette, showSettings, showSessionPicker, showRewindDialog]);
+  }, [toggleTerminal, showPalette, showSettings, showSessionPicker, showRewindDialog, showRestoreDialog]);
 
   // Build command palette actions
   const paletteActions = useMemo<PaletteAction[]>(() => {
@@ -353,6 +383,13 @@ export function AppShell() {
         isOpen={showRewindDialog}
         onClose={() => setShowRewindDialog(false)}
         onRewind={handleRewind}
+      />
+
+      {/* Restore dialog (/restore) */}
+      <RestoreDialog
+        isOpen={showRestoreDialog}
+        onClose={() => setShowRestoreDialog(false)}
+        onRestore={handleRestore}
       />
 
       {/* Toast notifications */}
