@@ -83,11 +83,20 @@ impl ProcessManager {
         }
 
         // Fall back to common install locations (works for GUI-launched apps)
-        for path in &[
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "/usr/bin/claude",
-        ] {
+        let mut candidates: Vec<String> = vec![
+            "/opt/homebrew/bin/claude".to_string(),
+            "/usr/local/bin/claude".to_string(),
+            "/usr/bin/claude".to_string(),
+        ];
+
+        // Add user-specific paths
+        if let Some(home) = dirs::home_dir() {
+            let home = home.to_string_lossy();
+            candidates.push(format!("{}/.npm/bin/claude", home));
+            candidates.push(format!("{}/.local/bin/claude", home));
+        }
+
+        for path in &candidates {
             if std::path::Path::new(path).exists() {
                 return Some(path.to_string());
             }
@@ -100,15 +109,25 @@ impl ProcessManager {
         if let Some(path) = provided {
             return Ok(path);
         }
-        for path in &[
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "/usr/bin/claude",
-        ] {
+
+        let mut candidates: Vec<String> = vec![
+            "/opt/homebrew/bin/claude".to_string(),
+            "/usr/local/bin/claude".to_string(),
+            "/usr/bin/claude".to_string(),
+        ];
+
+        if let Some(home) = dirs::home_dir() {
+            let home = home.to_string_lossy();
+            candidates.push(format!("{}/.npm/bin/claude", home));
+            candidates.push(format!("{}/.local/bin/claude", home));
+        }
+
+        for path in &candidates {
             if std::path::Path::new(path).exists() {
                 return Ok(path.to_string());
             }
         }
+
         Err("Claude CLI not found. Install via Homebrew (brew install claude-code) or npm (npm install -g @anthropic-ai/claude-code)"
             .to_string())
     }
@@ -131,6 +150,10 @@ impl ProcessManager {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+
+        // Strip env vars that prevent CLI from running inside other Claude sessions
+        cmd.env_remove("CLAUDECODE");
+        cmd.env_remove("CLAUDE_CODE_ENTRY_POINT");
 
         if let Some(ref resume_id) = opts.resume_session_id {
             cmd.arg("--resume").arg(resume_id);
@@ -212,13 +235,41 @@ impl ProcessManager {
             );
         });
 
-        // Spawn stderr reader
+        // Spawn stderr reader — forward to frontend so user sees errors
+        let stderr_processes = self.processes.clone();
+        let stderr_app = app_handle.clone();
         let sid_err = session_id.clone();
         tokio::spawn(async move {
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
+            let mut had_stderr = false;
             while let Ok(Some(line)) = lines.next_line().await {
                 log::warn!("[claude-stderr:{}] {}", sid_err, line);
+                had_stderr = true;
+                let _ = stderr_app.emit(
+                    crate::events::CLAUDE_STDERR,
+                    serde_json::json!({
+                        "sessionId": sid_err,
+                        "text": line,
+                    }),
+                );
+            }
+
+            // If stderr had output and process is still Starting/Running, mark as error
+            if had_stderr {
+                let mut procs = stderr_processes.lock().await;
+                if let Some(proc) = procs.get_mut(&sid_err) {
+                    if matches!(proc.status, ProcessStatus::Starting | ProcessStatus::Running) {
+                        proc.status = ProcessStatus::Error;
+                        let _ = stderr_app.emit(
+                            crate::events::CLAUDE_SESSION_STATUS,
+                            serde_json::json!({
+                                "sessionId": sid_err,
+                                "status": "error"
+                            }),
+                        );
+                    }
+                }
             }
         });
 
@@ -243,10 +294,14 @@ impl ProcessManager {
 
     /// Send a message to a session. For the first message, writes to stdin.
     /// For subsequent messages, spawns a new process with --resume.
+    ///
+    /// `project_path` is required for discovered sessions that have no process
+    /// entry yet — the frontend passes it from the session metadata.
     pub async fn send_message(
         &self,
         session_id: &str,
         message: &str,
+        project_path: &str,
         app_handle: tauri::AppHandle,
     ) -> Result<(), String> {
         let needs_respawn = {
@@ -262,16 +317,23 @@ impl ProcessManager {
 
         if needs_respawn {
             // Need to spawn a new process with --resume
-            let (project_path, claude_session_id) = {
+            let (resolved_path, claude_session_id) = {
                 let procs = self.processes.lock().await;
-                let project_path = procs
+                // Use project_path from existing process if available,
+                // otherwise fall back to the one provided by the frontend
+                let path = procs
                     .get(session_id)
                     .map(|p| p.project_path.clone())
-                    .ok_or_else(|| format!("Session {} not found", session_id))?;
+                    .unwrap_or_else(|| project_path.to_string());
 
                 let map = self.claude_session_map.lock().await;
-                let claude_sid = map.get(session_id).cloned();
-                (project_path, claude_sid)
+                // Check the map first; for discovered sessions the session_id
+                // itself IS the Claude session ID
+                let claude_sid = map
+                    .get(session_id)
+                    .cloned()
+                    .or_else(|| Some(session_id.to_string()));
+                (path, claude_sid)
             };
 
             let claude_sid = claude_session_id
@@ -289,7 +351,7 @@ impl ProcessManager {
             self.spawn(
                 SpawnOptions {
                     session_id: session_id.to_string(),
-                    project_path,
+                    project_path: resolved_path,
                     claude_cli_path: None,
                     resume_session_id: Some(claude_sid),
                     model: None,

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ToolCallBlock } from "./ToolCallBlock";
 import type { ChatMessage, ContentBlock } from "../../lib/types";
 
@@ -8,16 +9,19 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+  const [copied, setCopied] = useState(false);
 
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
+    <div
+      className={`group flex animate-slide-up ${isUser ? "justify-end" : "justify-start"}`}
+    >
       <div
-        className={`max-w-[85%] rounded-lg px-4 py-3 ${
+        className={`max-w-[85%] rounded-xl px-4 py-3 transition-all duration-200 hover:shadow-md ${
           isSystem
             ? "border border-error/30 bg-error/10 text-text"
             : isUser
               ? "bg-user-bubble text-text"
-              : "bg-assistant-bubble text-text"
+              : "border border-white/5 bg-assistant-bubble text-text"
         } ${message.isStreaming ? "border border-accent/30" : ""}`}
       >
         {/* Role label */}
@@ -36,7 +40,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Message content */}
         <div className="text-sm leading-relaxed">
-          <MessageContent content={message.content} />
+          <MessageContent content={message.content} copied={copied} onCopy={setCopied} />
         </div>
 
         {/* Tool calls */}
@@ -48,9 +52,9 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
 
-        {/* Timestamp */}
+        {/* Timestamp — hidden by default, visible on hover */}
         {!message.isStreaming && (
-          <div className="mt-2 text-xs text-text-muted">
+          <div className="mt-2 text-xs text-text-muted opacity-0 transition-opacity duration-200 group-hover:opacity-100">
             {formatTime(message.timestamp)}
           </div>
         )}
@@ -59,20 +63,28 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-function MessageContent({ content }: { content: string | ContentBlock[] }) {
+function MessageContent({
+  content,
+  copied,
+  onCopy,
+}: {
+  content: string | ContentBlock[];
+  copied: boolean;
+  onCopy: (v: boolean) => void;
+}) {
   if (typeof content === "string") {
-    return <FormattedText text={content} />;
+    return <FormattedText text={content} copied={copied} onCopy={onCopy} />;
   }
 
   return (
     <>
       {content.map((block, i) => {
         if (block.type === "text" && block.text) {
-          return <FormattedText key={i} text={block.text} />;
+          return <FormattedText key={i} text={block.text} copied={copied} onCopy={onCopy} />;
         }
         if (block.type === "tool_use") {
           return (
-            <div key={i} className="my-2 rounded bg-tool-call-bg p-2 text-xs">
+            <div key={i} className="my-2 rounded-lg bg-tool-call-bg p-2 text-xs">
               <span className="text-warning">Tool: {block.name}</span>
             </div>
           );
@@ -83,9 +95,24 @@ function MessageContent({ content }: { content: string | ContentBlock[] }) {
   );
 }
 
-function FormattedText({ text }: { text: string }) {
+function FormattedText({
+  text,
+  copied,
+  onCopy,
+}: {
+  text: string;
+  copied: boolean;
+  onCopy: (v: boolean) => void;
+}) {
   // Simple markdown-like formatting for code blocks
   const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+
+  const handleCopy = (code: string) => {
+    navigator.clipboard.writeText(code).then(() => {
+      onCopy(true);
+      setTimeout(() => onCopy(false), 2000);
+    });
+  };
 
   return (
     <>
@@ -93,12 +120,17 @@ function FormattedText({ text }: { text: string }) {
         if (part.startsWith("```") && part.endsWith("```")) {
           const code = part.slice(3, -3).replace(/^\w+\n/, ""); // strip language hint
           return (
-            <pre
-              key={i}
-              className="my-2 overflow-x-auto rounded bg-code-bg p-3 text-xs"
-            >
-              <code>{code}</code>
-            </pre>
+            <div key={i} className="group/code relative my-2">
+              <pre className="overflow-x-auto rounded-lg border-l-2 border-accent bg-code-bg p-3 text-xs">
+                <code>{code}</code>
+              </pre>
+              <button
+                onClick={() => handleCopy(code)}
+                className="absolute right-2 top-2 rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-opacity group-hover/code:opacity-100"
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
           );
         }
         if (part.startsWith("`") && part.endsWith("`")) {

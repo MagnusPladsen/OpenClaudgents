@@ -38,21 +38,13 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
     100,
     Math.round((totalTokens / contextWindow) * 100),
   );
-  const contextColor =
-    contextPercent > 95
-      ? "bg-error"
-      : contextPercent > 85
-        ? "bg-warning"
-        : contextPercent > 70
-          ? "bg-warning"
-          : "bg-success";
 
   // Cost estimate
   const cost = estimateCost(activeSession?.model, inputTokens, outputTokens);
 
   return (
-    <footer className="flex h-7 items-center justify-between border-t border-border bg-bg-secondary px-3 text-xs text-text-muted" aria-label="Status bar">
-      <div className="flex items-center gap-4">
+    <footer className="flex h-8 items-center justify-between border-t border-border bg-bg-secondary px-3 text-xs text-text-muted" aria-label="Status bar">
+      <div className="flex items-center gap-3">
         {/* Session status */}
         {activeSession && (
           <>
@@ -60,7 +52,7 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
                   isStreaming
-                    ? "animate-pulse bg-success"
+                    ? "animate-pulse bg-success shadow-sm shadow-success/50"
                     : activeSession.status === "active"
                       ? "bg-success"
                       : activeSession.status === "error"
@@ -73,9 +65,14 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
               <span>{activeSession.status}</span>
             </div>
 
-            {/* Model */}
+            {/* Divider */}
+            <span className="h-3 w-px bg-border" />
+
+            {/* Model badge */}
             {activeSession.model && (
-              <span>{formatModelName(activeSession.model)}</span>
+              <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
+                {formatModelName(activeSession.model)}
+              </span>
             )}
 
             {/* Message count */}
@@ -83,19 +80,38 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
 
             {/* Git branch */}
             {gitStatus && (
-              <div className="flex items-center gap-1">
-                <span>{gitStatus.branch}</span>
-                {gitStatus.isDirty && (
-                  <span className="text-warning">
-                    ({gitStatus.dirtyFileCount})
-                  </span>
-                )}
-                {gitStatus.isWorktree && (
-                  <span className="rounded bg-accent/20 px-1 text-accent">
-                    wt
-                  </span>
-                )}
-              </div>
+              <>
+                <span className="h-3 w-px bg-border" />
+                <div className="flex items-center gap-1">
+                  {/* Branch icon */}
+                  <svg
+                    className="h-3 w-3"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="6" y1="3" x2="6" y2="15" />
+                    <circle cx="18" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <path d="M18 9a9 9 0 0 1-9 9" />
+                  </svg>
+                  <span>{gitStatus.branch}</span>
+                  {gitStatus.isDirty && (
+                    <span className="text-warning">
+                      ({gitStatus.dirtyFileCount})
+                    </span>
+                  )}
+                  {gitStatus.isWorktree && (
+                    <span className="rounded bg-accent/20 px-1 text-[10px] text-accent">
+                      wt
+                    </span>
+                  )}
+                </div>
+              </>
             )}
           </>
         )}
@@ -103,33 +119,60 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
         {!activeSession && <span>No active session</span>}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {/* Context budget bar + tokens + cost */}
         {activeSession && totalTokens > 0 && (
           <div className="flex items-center gap-2">
-            <div className="h-1.5 w-16 overflow-hidden rounded-full bg-bg-tertiary">
+            <div className="relative h-2 w-24 overflow-hidden rounded-full bg-bg-tertiary">
               <div
-                className={`h-full rounded-full transition-all ${contextColor}`}
-                style={{ width: `${contextPercent}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${contextPercent}%`,
+                  background: contextPercent > 95
+                    ? "var(--color-error)"
+                    : contextPercent > 70
+                      ? `linear-gradient(90deg, var(--color-success), var(--color-warning))`
+                      : "var(--color-success)",
+                }}
               />
+              {/* Percentage overlay */}
+              <span className="absolute inset-0 flex items-center justify-center text-[8px] font-medium text-text mix-blend-difference">
+                {contextPercent}%
+              </span>
             </div>
             <span>
-              {contextPercent}% | {formatTokenCount(totalTokens)} tokens | {formatCost(cost)}
+              {formatTokenCount(totalTokens)} tokens | {formatCost(cost)}
             </span>
           </div>
         )}
+
+        {/* Divider */}
+        <span className="h-3 w-px bg-border" />
 
         {/* Terminal toggle */}
         <button
           onClick={onToggleTerminal}
           aria-label="Toggle terminal"
           aria-pressed={showTerminal}
-          className={`rounded px-1.5 py-0.5 transition-colors hover:bg-bg-tertiary ${
+          className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-all duration-150 hover:bg-bg-tertiary ${
             showTerminal ? "text-accent" : "text-text-muted"
           }`}
           title="Toggle Terminal (Cmd+J)"
         >
-          Terminal
+          {/* Terminal icon */}
+          <svg
+            className="h-3.5 w-3.5"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
         </button>
       </div>
     </footer>

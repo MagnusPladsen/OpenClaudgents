@@ -102,19 +102,33 @@ export function CommandPalette({ actions, isOpen, onClose }: CommandPaletteProps
   let flatIndex = 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
+    <div className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Palette */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="relative w-full max-w-md rounded-lg border border-border bg-bg-secondary shadow-2xl"
+        className="animate-scale-in relative w-full max-w-md rounded-xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/20 backdrop-blur-xl"
       >
         {/* Search input */}
-        <div className="border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          {/* Search icon */}
+          <svg
+            className="h-4 w-4 flex-shrink-0 text-text-muted"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
           <input
             ref={inputRef}
             type="text"
@@ -157,9 +171,9 @@ export function CommandPalette({ actions, isOpen, onClose }: CommandPaletteProps
                       action.onSelect();
                       onClose();
                     }}
-                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-colors ${
+                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-all duration-150 ${
                       idx === selectedIndex
-                        ? "bg-accent/10 text-accent"
+                        ? "bg-accent/10 text-accent shadow-sm shadow-accent/10"
                         : "text-text hover:bg-bg-tertiary"
                     }`}
                   >

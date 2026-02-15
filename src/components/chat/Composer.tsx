@@ -38,9 +38,11 @@ export function Composer({ onSend, disabled }: ComposerProps) {
     }
   };
 
+  const canSend = !disabled && text.trim().length > 0;
+
   return (
-    <div className="border-t border-border bg-bg-secondary p-4">
-      <div className="flex items-end gap-2 rounded-lg border border-border bg-bg px-3 py-2 focus-within:border-border-focus">
+    <div className="border-t border-border bg-bg-secondary/80 p-4 backdrop-blur-sm">
+      <div className="flex items-end gap-2 rounded-xl border border-border bg-bg px-3 py-2 transition-all duration-200 focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/20 focus-within:shadow-lg focus-within:shadow-accent/5">
         <textarea
           ref={textareaRef}
           value={text}
@@ -57,10 +59,29 @@ export function Composer({ onSend, disabled }: ComposerProps) {
         />
         <button
           onClick={handleSend}
-          disabled={disabled || !text.trim()}
+          disabled={!canSend}
           aria-label="Send message"
-          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-bg transition-colors hover:bg-accent-hover disabled:opacity-30"
+          className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+            canSend
+              ? "bg-accent text-bg shadow-sm shadow-accent/20 hover:scale-105 hover:bg-accent-hover hover:shadow-md hover:shadow-accent/30"
+              : "bg-bg-tertiary text-text-muted"
+          }`}
         >
+          {/* Arrow up icon */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="12" y1="19" x2="12" y2="5" />
+            <polyline points="5 12 12 5 19 12" />
+          </svg>
           Send
         </button>
       </div>

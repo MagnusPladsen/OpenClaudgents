@@ -35,7 +35,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -46,7 +46,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="mx-4 w-full max-w-lg rounded-lg border border-border bg-bg-secondary shadow-xl focus:outline-none"
+        className="animate-scale-in mx-4 w-full max-w-lg rounded-xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/20 backdrop-blur-xl focus:outline-none"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
