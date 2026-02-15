@@ -28,6 +28,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "compact", description: "Compact conversation context", category: "session", passthrough: true },
   { name: "rewind", description: "Rewind conversation and/or code to a checkpoint", category: "session" },
   { name: "plan", description: "Toggle plan mode", category: "session" },
+  { name: "restore", description: "Restore code to a previous commit", category: "session" },
 
   // Context — info about current state
   { name: "help", description: "Show available commands", category: "context" },
