@@ -11,32 +11,40 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isSystem = message.role === "system";
   const [copied, setCopied] = useState(false);
 
+  // Asymmetric bubble shapes
+  const bubbleShape = isSystem
+    ? "rounded-xl border-l-3 border-error"
+    : isUser
+      ? "rounded-2xl rounded-br-md"
+      : "rounded-2xl";
+
   return (
     <div
-      className={`group flex animate-slide-up ${isUser ? "justify-end" : "justify-start"}`}
+      className={`group flex ${isUser ? "justify-end" : "justify-start"}`}
     >
+      {/* Avatar dot — assistant only */}
+      {!isUser && !isSystem && (
+        <div className="mr-2.5 mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[11px] font-semibold text-info">
+          C
+        </div>
+      )}
+
       <div
-        className={`max-w-[85%] rounded-xl px-4 py-3 transition-all duration-200 hover:shadow-md ${
+        className={`max-w-[80%] px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10 ${bubbleShape} ${
           isSystem
-            ? "border border-error/30 bg-error/10 text-text"
+            ? "bg-error/10 text-text"
             : isUser
               ? "bg-user-bubble text-text"
               : "border border-white/5 bg-assistant-bubble text-text"
         } ${message.isStreaming ? "border border-accent/30" : ""}`}
       >
-        {/* Role label */}
-        <div className="mb-1 flex items-center gap-2">
-          <span
-            className={`text-xs font-medium ${
-              isSystem ? "text-error" : isUser ? "text-accent" : "text-info"
-            }`}
-          >
-            {isSystem ? "Error" : isUser ? "You" : "Claude"}
-          </span>
-          {message.isStreaming && (
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-accent" />
-          )}
-        </div>
+        {/* Streaming pulse indicator */}
+        {message.isStreaming && (
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-block h-2 w-2 animate-pulse-soft rounded-full bg-accent" />
+            <span className="text-[10px] font-medium text-accent">Streaming</span>
+          </div>
+        )}
 
         {/* Message content */}
         <div className="text-sm leading-relaxed">
@@ -59,6 +67,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </div>
         )}
       </div>
+
+      {/* Avatar dot — user only */}
+      {isUser && (
+        <div className="ml-2.5 mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
+          Y
+        </div>
+      )}
     </div>
   );
 }
@@ -84,7 +99,7 @@ function MessageContent({
         }
         if (block.type === "tool_use") {
           return (
-            <div key={i} className="my-2 rounded-lg bg-tool-call-bg p-2 text-xs">
+            <div key={i} className="my-2 rounded-lg bg-tool-call-bg p-2 font-mono text-xs">
               <span className="text-warning">Tool: {block.name}</span>
             </div>
           );
@@ -118,18 +133,26 @@ function FormattedText({
     <>
       {parts.map((part, i) => {
         if (part.startsWith("```") && part.endsWith("```")) {
-          const code = part.slice(3, -3).replace(/^\w+\n/, ""); // strip language hint
+          const firstNewline = part.indexOf("\n");
+          const lang = firstNewline > 3 ? part.slice(3, firstNewline).trim() : "";
+          const code = firstNewline > 0 ? part.slice(firstNewline + 1, -3) : part.slice(3, -3);
           return (
-            <div key={i} className="group/code relative my-2">
-              <pre className="overflow-x-auto rounded-lg border-l-2 border-accent bg-code-bg p-3 text-xs">
+            <div key={i} className="group/code relative my-3 overflow-hidden rounded-xl border border-white/5">
+              {/* Code header bar */}
+              <div className="flex items-center justify-between border-b border-white/5 bg-code-bg px-3 py-1.5">
+                <span className="font-mono text-[10px] font-medium text-text-muted">
+                  {lang || "code"}
+                </span>
+                <button
+                  onClick={() => handleCopy(code)}
+                  className="rounded px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-all hover:bg-bg-tertiary hover:text-text group-hover/code:opacity-100"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <pre className="overflow-x-auto bg-code-bg p-3 font-mono text-xs leading-relaxed">
                 <code>{code}</code>
               </pre>
-              <button
-                onClick={() => handleCopy(code)}
-                className="absolute right-2 top-2 rounded bg-bg-tertiary px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-opacity group-hover/code:opacity-100"
-              >
-                {copied ? "Copied" : "Copy"}
-              </button>
             </div>
           );
         }
@@ -137,7 +160,7 @@ function FormattedText({
           return (
             <code
               key={i}
-              className="rounded bg-code-bg px-1.5 py-0.5 text-xs text-accent"
+              className="rounded bg-code-bg px-1.5 py-0.5 font-mono text-xs text-accent"
             >
               {part.slice(1, -1)}
             </code>

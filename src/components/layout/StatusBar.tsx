@@ -42,17 +42,19 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
   // Cost estimate
   const cost = estimateCost(activeSession?.model, inputTokens, outputTokens);
 
+  const isNearCapacity = contextPercent > 80;
+
   return (
-    <footer className="flex h-8 items-center justify-between border-t border-border bg-bg-secondary px-3 text-xs text-text-muted" aria-label="Status bar">
-      <div className="flex items-center gap-3">
+    <footer className="flex h-9 items-center justify-between bg-bg-secondary px-3 text-xs text-text-muted shadow-[0_-2px_12px_-4px_rgba(0,0,0,0.2)]" aria-label="Status bar">
+      <div className="flex items-center gap-2">
         {/* Session status */}
         {activeSession && (
           <>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 rounded-md bg-bg-tertiary/30 px-2 py-0.5">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
                   isStreaming
-                    ? "animate-pulse bg-success shadow-sm shadow-success/50"
+                    ? "animate-pulse-soft bg-success shadow-sm shadow-success/50"
                     : activeSession.status === "active"
                       ? "bg-success"
                       : activeSession.status === "error"
@@ -65,9 +67,6 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
               <span>{activeSession.status}</span>
             </div>
 
-            {/* Divider */}
-            <span className="h-3 w-px bg-border" />
-
             {/* Model badge */}
             {activeSession.model && (
               <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
@@ -76,42 +75,41 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
             )}
 
             {/* Message count */}
-            <span>{messageCount} msgs</span>
+            <span className="rounded-md bg-bg-tertiary/30 px-2 py-0.5">
+              {messageCount} msgs
+            </span>
 
             {/* Git branch */}
             {gitStatus && (
-              <>
-                <span className="h-3 w-px bg-border" />
-                <div className="flex items-center gap-1">
-                  {/* Branch icon */}
-                  <svg
-                    className="h-3 w-3"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                  <span>{gitStatus.branch}</span>
-                  {gitStatus.isDirty && (
-                    <span className="text-warning">
-                      ({gitStatus.dirtyFileCount})
-                    </span>
-                  )}
-                  {gitStatus.isWorktree && (
-                    <span className="rounded bg-accent/20 px-1 text-[10px] text-accent">
-                      wt
-                    </span>
-                  )}
-                </div>
-              </>
+              <div className="flex items-center gap-1 rounded-md bg-bg-tertiary/30 px-2 py-0.5">
+                {/* Branch icon */}
+                <svg
+                  className="h-3 w-3"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="6" y1="3" x2="6" y2="15" />
+                  <circle cx="18" cy="6" r="3" />
+                  <circle cx="6" cy="18" r="3" />
+                  <path d="M18 9a9 9 0 0 1-9 9" />
+                </svg>
+                <span>{gitStatus.branch}</span>
+                {gitStatus.isDirty && (
+                  <span className="text-warning">
+                    ({gitStatus.dirtyFileCount})
+                  </span>
+                )}
+                {gitStatus.isWorktree && (
+                  <span className="rounded bg-accent/20 px-1 text-[10px] text-accent">
+                    wt
+                  </span>
+                )}
+              </div>
             )}
           </>
         )}
@@ -119,11 +117,11 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
         {!activeSession && <span>No active session</span>}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Context budget bar + tokens + cost */}
         {activeSession && totalTokens > 0 && (
-          <div className="flex items-center gap-2">
-            <div className="relative h-2 w-24 overflow-hidden rounded-full bg-bg-tertiary">
+          <div className="flex items-center gap-2 rounded-md bg-bg-tertiary/30 px-2 py-0.5">
+            <div className={`relative h-2.5 w-24 overflow-hidden rounded-full bg-bg-tertiary ${isNearCapacity ? "glow-accent" : ""}`}>
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -146,16 +144,13 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
           </div>
         )}
 
-        {/* Divider */}
-        <span className="h-3 w-px bg-border" />
-
         {/* Terminal toggle */}
         <button
           onClick={onToggleTerminal}
           aria-label="Toggle terminal"
           aria-pressed={showTerminal}
-          className={`flex items-center gap-1 rounded px-1.5 py-0.5 transition-all duration-150 hover:bg-bg-tertiary ${
-            showTerminal ? "text-accent" : "text-text-muted"
+          className={`flex items-center gap-1 rounded-md px-2 py-1 transition-all duration-150 hover:bg-bg-tertiary active:scale-95 ${
+            showTerminal ? "bg-accent/10 text-accent" : "text-text-muted"
           }`}
           title="Toggle Terminal (Cmd+J)"
         >

@@ -35,7 +35,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
   return (
     <div
-      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xl"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -46,69 +46,70 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="animate-scale-in mx-4 w-full max-w-lg rounded-xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/20 backdrop-blur-xl focus:outline-none"
+        className="animate-scale-in-spring mx-4 w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/30 backdrop-blur-xl focus:outline-none"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
-          <h2 className="text-sm font-semibold text-text">Settings</h2>
+        <div className="relative flex items-center justify-between px-6 py-5">
+          <h2 className="text-base font-semibold tracking-tight text-text">Settings</h2>
           <button
             onClick={onClose}
-            className="rounded px-2 py-1 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-text-muted transition-all hover:bg-bg-tertiary hover:text-text"
             aria-label="Close settings"
           >
-            Close
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
+          <div className="pointer-events-none absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         </div>
 
         {/* Content */}
-        <div className="max-h-[60vh] space-y-6 overflow-y-auto px-6 py-4">
+        <div className="max-h-[60vh] space-y-8 overflow-y-auto px-6 py-5">
           {/* Theme */}
-          <ThemePicker />
+          <SettingsSection title="Theme">
+            <ThemePicker />
+          </SettingsSection>
 
           {/* Font Size */}
-          <div>
-            <h4 className="mb-2 text-xs font-semibold text-text">Font Size</h4>
-            <div className="flex items-center gap-3">
+          <SettingsSection title="Font Size">
+            <div className="flex items-center gap-4">
               <input
                 type="range"
                 min={10}
                 max={20}
                 value={fontSize}
                 onChange={(e) => setFontSize(Number(e.target.value))}
-                className="flex-1"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-bg-tertiary accent-accent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:shadow-accent/20"
                 aria-label="Font size"
               />
-              <span className="w-8 text-right text-xs text-text-muted">
+              <span className="w-10 text-right font-mono text-xs text-text-muted">
                 {fontSize}px
               </span>
             </div>
-          </div>
+          </SettingsSection>
 
           {/* Notifications */}
-          <div>
-            <h4 className="mb-2 text-xs font-semibold text-text">Notifications</h4>
-            <label className="flex cursor-pointer items-center gap-2">
+          <SettingsSection title="Notifications">
+            <label className="flex cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
                 checked={notificationsEnabled}
                 onChange={(e) => setNotificationsEnabled(e.target.checked)}
-                className="rounded border-border"
+                className="h-4 w-4 rounded border-border accent-accent"
               />
-              <span className="text-xs text-text">
+              <span className="text-sm text-text">
                 Enable desktop notifications
               </span>
             </label>
-            <p className="mt-1 text-xs text-text-muted">
+            <p className="mt-1.5 text-xs text-text-muted">
               Get notified when tasks complete or agents need input.
             </p>
-          </div>
+          </SettingsSection>
 
           {/* Keyboard Shortcuts Reference */}
-          <div>
-            <h4 className="mb-2 text-xs font-semibold text-text">
-              Keyboard Shortcuts
-            </h4>
-            <div className="space-y-1">
+          <SettingsSection title="Keyboard Shortcuts">
+            <div className="space-y-2">
               {[
                 { keys: "⌘K", action: "Command palette" },
                 { keys: "⌘J", action: "Toggle terminal" },
@@ -118,27 +119,38 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
               ].map((shortcut) => (
                 <div
                   key={shortcut.keys}
-                  className="flex items-center justify-between text-xs"
+                  className="flex items-center justify-between text-sm"
                 >
                   <span className="text-text-muted">{shortcut.action}</span>
-                  <kbd className="rounded bg-bg-tertiary px-1.5 py-0.5 text-text-muted">
+                  <kbd className="rounded-md bg-bg-tertiary px-2 py-0.5 font-mono text-[10px] text-text-secondary">
                     {shortcut.keys}
                   </kbd>
                 </div>
               ))}
             </div>
-          </div>
+          </SettingsSection>
 
           {/* About */}
-          <div>
-            <h4 className="mb-2 text-xs font-semibold text-text">About</h4>
-            <p className="text-xs text-text-muted">
+          <SettingsSection title="About">
+            <p className="text-sm text-text-muted">
               OpenClaudgents v0.1.0 — Open-source multi-agent Claude Code
               orchestrator.
             </p>
-          </div>
+          </SettingsSection>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="relative mb-3">
+        <h4 className="text-sm font-semibold text-text">{title}</h4>
+        <div className="pointer-events-none absolute -bottom-1.5 left-0 h-px w-8 bg-accent/40" />
+      </div>
+      {children}
     </div>
   );
 }

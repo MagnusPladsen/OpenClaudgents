@@ -1,5 +1,8 @@
 /* Theme CSS variables — default dark theme */
 @theme {
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
   --color-bg: var(--theme-bg, #1a1b26);
   --color-bg-secondary: var(--theme-bg-secondary, #24283b);
   --color-bg-tertiary: var(--theme-bg-tertiary, #2f3549);

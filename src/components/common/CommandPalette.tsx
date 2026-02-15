@@ -104,17 +104,17 @@ export function CommandPalette({ actions, isOpen, onClose }: CommandPaletteProps
   return (
     <div className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" onClick={onClose} />
 
       {/* Palette */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
-        className="animate-scale-in relative w-full max-w-md rounded-xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/20 backdrop-blur-xl"
+        className="animate-scale-in-spring relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/30 backdrop-blur-xl"
       >
         {/* Search input */}
-        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-white/5 px-5 py-4">
           {/* Search icon */}
           <svg
             className="h-4 w-4 flex-shrink-0 text-text-muted"
@@ -147,46 +147,55 @@ export function CommandPalette({ actions, isOpen, onClose }: CommandPaletteProps
         </div>
 
         {/* Results */}
-        <div ref={listRef} role="listbox" className="max-h-72 overflow-y-auto py-2">
+        <div ref={listRef} role="listbox" className="max-h-80 overflow-y-auto py-2">
           {filtered.length === 0 && (
-            <div className="px-4 py-6 text-center text-xs text-text-muted">
+            <div className="px-5 py-8 text-center text-xs text-text-muted">
               No matching commands
             </div>
           )}
 
           {Object.entries(grouped).map(([section, sectionActions]) => (
             <div key={section}>
-              <div className="px-4 py-1 text-xs font-medium text-text-muted">
-                {section}
+              {/* Section header — uppercase tracked with accent dot */}
+              <div className="flex items-center gap-2 px-5 py-2">
+                <span className="h-1 w-1 rounded-full bg-accent/60" />
+                <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+                  {section}
+                </span>
               </div>
               {sectionActions.map((action) => {
                 const idx = flatIndex++;
+                const isSelected = idx === selectedIndex;
                 return (
                   <button
                     key={action.id}
                     data-index={idx}
                     role="option"
-                    aria-selected={idx === selectedIndex}
+                    aria-selected={isSelected}
                     onClick={() => {
                       action.onSelect();
                       onClose();
                     }}
-                    className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition-all duration-150 ${
-                      idx === selectedIndex
-                        ? "bg-accent/10 text-accent shadow-sm shadow-accent/10"
-                        : "text-text hover:bg-bg-tertiary"
+                    className={`relative flex w-full items-center justify-between px-5 py-2.5 text-left text-sm transition-all duration-150 ${
+                      isSelected
+                        ? "bg-accent/15 text-accent"
+                        : "text-text hover:bg-bg-tertiary/50"
                     }`}
                   >
+                    {/* Left accent bar for selected */}
+                    {isSelected && (
+                      <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-accent" />
+                    )}
                     <div>
-                      <div>{action.label}</div>
+                      <div className="font-medium">{action.label}</div>
                       {action.description && (
-                        <div className="text-xs text-text-muted">
+                        <div className="mt-0.5 text-xs text-text-muted">
                           {action.description}
                         </div>
                       )}
                     </div>
                     {action.shortcut && (
-                      <kbd className="rounded bg-bg-tertiary px-1.5 py-0.5 text-xs text-text-muted">
+                      <kbd className="rounded-md bg-bg-tertiary px-2 py-0.5 font-mono text-[10px] text-text-muted">
                         {action.shortcut}
                       </kbd>
                     )}

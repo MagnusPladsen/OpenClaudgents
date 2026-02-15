@@ -1,52 +1,55 @@
-import { useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState, useCallback } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
+import { createSession, sendMessage } from "../../lib/tauri";
 import { MessageList } from "../chat/MessageList";
 import { Composer } from "../chat/Composer";
 import { WelcomeScreen } from "../chat/WelcomeScreen";
-import type { Session } from "../../lib/types";
 
 interface ChatPaneProps {
   onTogglePreview: () => void;
   showPreview: boolean;
+  welcomeKey?: number;
+  onSlashCommand?: (command: string) => boolean;
 }
 
-export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
+export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashCommand }: ChatPaneProps) {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const messages = useChatStore((s) => s.messages);
   const addMessage = useChatStore((s) => s.addMessage);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const [welcomeError, setWelcomeError] = useState<string | null>(null);
+
+  const activeSession = useSessionStore((s) => {
+    return s.sessions.find((sess) => sess.id === s.activeSessionId);
+  });
 
   const handleCreateSession = useCallback(
     async (projectPath: string) => {
+      setWelcomeError(null);
       try {
-        const session = await invoke<Session>("create_session", {
-          projectPath,
-        });
+        const session = await createSession(projectPath);
         addSession(session);
         setActiveSession(session.id);
       } catch (err) {
         console.error("Failed to create session:", err);
-        // Show error in chat so user can see what went wrong
-        addMessage({
-          uuid: crypto.randomUUID(),
-          parentUuid: null,
-          role: "system",
-          content: `Failed to create session: ${err}`,
-          timestamp: new Date().toISOString(),
-          isSidechain: false,
-        });
+        setWelcomeError(String(err));
       }
     },
-    [addSession, setActiveSession, addMessage],
+    [addSession, setActiveSession],
   );
 
   const handleSendMessage = useCallback(
     async (message: string) => {
       if (!activeSessionId) return;
+
+      // Check for slash commands
+      if (message.startsWith("/") && onSlashCommand) {
+        const handled = onSlashCommand(message);
+        if (handled) return;
+      }
 
       // Look up the active session's project path
       const session = useSessionStore
@@ -65,14 +68,9 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
       });
 
       try {
-        await invoke("send_message", {
-          sessionId: activeSessionId,
-          message,
-          projectPath,
-        });
+        await sendMessage(activeSessionId, message, projectPath);
       } catch (err) {
         console.error("Failed to send message:", err);
-        // Show error as a system message so the user knows it failed
         addMessage({
           uuid: crypto.randomUUID(),
           parentUuid: null,
@@ -83,13 +81,17 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
         });
       }
     },
-    [activeSessionId, addMessage],
+    [activeSessionId, addMessage, onSlashCommand],
   );
 
   if (!activeSessionId) {
     return (
       <div className="flex flex-1 flex-col">
-        <WelcomeScreen onCreateSession={handleCreateSession} />
+        <WelcomeScreen
+          key={welcomeKey}
+          onCreateSession={handleCreateSession}
+          error={welcomeError}
+        />
       </div>
     );
   }
@@ -97,9 +99,14 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-bg" aria-label="Chat">
       {/* Chat header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-text">Chat</span>
+      <div className="relative flex items-center justify-between px-5 py-3">
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold tracking-tight text-text">Chat</span>
+          {activeSession?.model && (
+            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
+              {activeSession.model.includes("sonnet") ? "Sonnet" : activeSession.model.includes("opus") ? "Opus" : "Haiku"}
+            </span>
+          )}
           <span className="text-xs text-text-muted">
             {messages.length} messages
           </span>
@@ -107,10 +114,12 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
         <button
           onClick={onTogglePreview}
           aria-label={showPreview ? "Hide preview pane" : "Show preview pane"}
-          className="rounded px-2 py-1 text-xs text-text-secondary hover:bg-bg-tertiary"
+          className="rounded-lg px-2.5 py-1 text-xs text-text-secondary transition-all duration-200 hover:bg-bg-tertiary hover:text-text"
         >
           {showPreview ? "Hide Preview" : "Show Preview"}
         </button>
+        {/* Bottom gradient border */}
+        <div className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </div>
 
       {/* Messages */}

@@ -51,9 +51,9 @@ export function PreviewPane({ onClose }: PreviewPaneProps) {
   ];
 
   return (
-    <aside className="flex w-[400px] flex-col border-l border-border bg-bg-secondary" aria-label="Preview pane">
-      {/* Header with tabs — scrollable for many tabs */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+    <aside className="flex w-[400px] flex-col bg-bg-secondary shadow-[-4px_0_24px_-4px_rgba(0,0,0,0.2)]" aria-label="Preview pane">
+      {/* Header with pill tabs */}
+      <div className="relative flex items-center justify-between px-3 py-3">
         <div className="flex items-center gap-1 overflow-x-auto" role="tablist" aria-label="Preview tabs">
           {tabs.map((tab) => (
             <button
@@ -61,10 +61,10 @@ export function PreviewPane({ onClose }: PreviewPaneProps) {
               role="tab"
               aria-selected={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap rounded px-2 py-1 text-xs transition-colors ${
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-all duration-200 ${
                 activeTab === tab.id
-                  ? "bg-bg-tertiary text-text"
-                  : "text-text-muted hover:text-text"
+                  ? "bg-accent/15 text-accent shadow-sm shadow-accent/10"
+                  : "text-text-muted hover:bg-bg-tertiary/50 hover:text-text"
               }`}
             >
               {tab.label}
@@ -74,16 +74,22 @@ export function PreviewPane({ onClose }: PreviewPaneProps) {
         <button
           onClick={onClose}
           aria-label="Close preview pane"
-          className="ml-2 flex-shrink-0 rounded px-2 py-1 text-xs text-text-muted hover:bg-bg-tertiary hover:text-text"
+          className="ml-2 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-text-muted transition-all hover:bg-bg-tertiary hover:text-text"
         >
-          Close
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
+        {/* Gradient separator */}
+        <div className="pointer-events-none absolute bottom-0 left-3 right-3 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </div>
 
       {/* Git status bar (shown on diff tab) */}
       {activeTab === "diff" && gitStatus && (
-        <div className="border-b border-border px-4 py-2">
+        <div className="relative px-4 py-2">
           <GitStatusBar status={gitStatus} projectPath={projectPath} showActions />
+          <div className="pointer-events-none absolute bottom-0 left-3 right-3 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
         </div>
       )}
 

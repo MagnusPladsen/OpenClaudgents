@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
-import {
-  discoverSessions,
-  getSessionMessages,
-} from "../../lib/tauri";
+import { discoverSessions, getSessionMessages } from "../../lib/tauri";
 import { SessionList } from "../sidebar/SessionList";
 import { NewSessionButton } from "../sidebar/NewSessionButton";
 import { SettingsDialog } from "../settings/SettingsDialog";
 import type { ChatMessage, ContentBlock } from "../../lib/types";
 import type { ParsedMessage } from "../../lib/tauri";
 
-export function Sidebar() {
+interface SidebarProps {
+  onNewSession?: () => void;
+}
+
+export function Sidebar({ onNewSession }: SidebarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
@@ -86,33 +87,35 @@ export function Sidebar() {
   };
 
   return (
-    <nav className="flex w-64 flex-col border-r border-border bg-bg-secondary" aria-label="Sessions sidebar">
-      <div className="relative flex items-center justify-between px-4 py-3">
-        <h1 className="text-sm font-semibold text-text">OpenClaudgents</h1>
+    <nav className="relative z-10 flex w-64 flex-col bg-bg-secondary shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]" aria-label="Sessions sidebar">
+      {/* Header */}
+      <div className="relative flex items-center justify-between px-4 py-4">
+        <h1 className="text-base font-semibold tracking-tight text-text">
+          OpenClaudgents
+        </h1>
         {sessions.length > 0 && (
-          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
+          <span className="rounded-full bg-accent/15 px-2.5 py-0.5 text-[10px] font-medium text-accent shadow-sm shadow-accent/20">
             {sessions.length}
           </span>
         )}
-        {/* Bottom gradient fade instead of hard border */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        {/* Animated gradient underline */}
+        <div className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <SessionList onSelectSession={handleSelectSession} />
       </div>
 
-      <div className="border-t border-border p-3">
+      {/* Bottom section — gradient separator instead of hard border */}
+      <div className="relative px-3 pb-3 pt-4">
+        <div className="pointer-events-none absolute left-3 right-3 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <NewSessionButton onClick={() => {
-              setActiveSession(null);
-              setMessages([]);
-            }} />
+            <NewSessionButton onClick={() => onNewSession?.()} />
           </div>
           <button
             onClick={() => setShowSettings(true)}
-            className="rounded p-1.5 text-text-muted transition-colors hover:bg-bg-tertiary hover:text-text"
+            className="rounded-lg p-2 text-text-muted transition-all duration-200 hover:bg-bg-tertiary/60 hover:text-text hover:shadow-sm"
             aria-label="Open settings"
             title="Settings (⌘,)"
           >
