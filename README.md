@@ -6,6 +6,10 @@
 
 Open-source desktop app for visualizing and orchestrating Claude Code agent teams in real-time. Tree/graph view of running agents, live output streaming, session management, and diff previews. Built with Tauri + React for macOS and Linux.
 
+![OpenClaudgents v0.1.0](https://github.com/user-attachments/assets/6b08adf9-7414-4556-a9d5-bcf43abe02d5)
+
+> **v0.1.0 Pre-release** — MVP is live! Sessions pane, terminal, real-time chat, themes, slash commands, command palette, and context/agent/task status. [Download the release](https://github.com/MagnusPladsen/OpenClaudgents/releases/tag/v0.1.0)
+
 ## Features
 
 - **Multi-session chat** -- Run and switch between multiple Claude Code sessions from a single window. Messages stream in real-time via Claude CLI's `stream-json` output.
@@ -139,6 +143,7 @@ src-tauri/              # Rust backend
 | `Cmd+,` | Settings |
 | `Enter` | Send message |
 | `Shift+Enter` | New line in composer |
+| `/` | Slash command autocomplete |
 
 ## Contributing
 
