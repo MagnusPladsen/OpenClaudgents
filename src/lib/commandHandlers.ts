@@ -1,7 +1,7 @@
 import { SLASH_COMMANDS, CATEGORY_LABELS } from "./commands";
 import { estimateCost, formatCost, getModelDisplayName } from "./cost";
 import { BUILT_IN_THEMES } from "./theme";
-import { detectClaudeCli, getGitStatus, getClaudeTodos, updateClaudeMd, killSession, discoverCustomSkills, getMcpServers, listWorktrees } from "./tauri";
+import { detectClaudeCli, getGitStatus, getClaudeTodos, updateClaudeMd, killSession, listWorktrees } from "./tauri";
 import type { ParsedSlashCommand, CommandCategory } from "./commands";
 import type { Session, ChatMessage } from "./types";
 
@@ -27,6 +27,7 @@ export interface CommandContext {
   showRewindDialog: () => void;
   switchModel: (model: string) => Promise<void>;
   showRestoreDialog: () => void;
+  showPluginManager: () => void;
 }
 
 /**
@@ -474,45 +475,7 @@ export async function executeCommand(
     }
 
     case "plugins": {
-      const session = ctx.getActiveSession();
-      let report = "**Plugins & Skills**\n\n";
-
-      // Custom skills
-      try {
-        const skills = await discoverCustomSkills(session?.projectPath);
-        if (skills.length > 0) {
-          report += "**Custom Skills:**\n";
-          for (const skill of skills) {
-            report += `- \`/${skill.name}\` — ${skill.description} _(${skill.source})_\n`;
-          }
-        } else {
-          report += "**Custom Skills:** None found\n";
-          report += "_Add skills to `~/.claude/skills/` or `.claude/skills/` in your project._\n";
-        }
-      } catch {
-        report += "**Custom Skills:** Unable to discover\n";
-      }
-
-      report += "\n";
-
-      // MCP servers
-      try {
-        const servers = await getMcpServers();
-        if (servers.length > 0) {
-          report += "**MCP Servers:**\n";
-          for (const srv of servers) {
-            const status = srv.enabled ? "enabled" : "disabled";
-            report += `- \`${srv.name}\` — ${srv.command} _(${status})_\n`;
-          }
-        } else {
-          report += "**MCP Servers:** None configured\n";
-          report += "_Add MCP servers to your Claude Code settings._\n";
-        }
-      } catch {
-        report += "**MCP Servers:** Unable to load\n";
-      }
-
-      ctx.addSystemMessage(report);
+      ctx.showPluginManager();
       return true;
     }
 

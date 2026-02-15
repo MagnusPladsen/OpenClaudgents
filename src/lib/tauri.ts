@@ -165,6 +165,26 @@ export async function updateClaudeMd(
   return invoke("update_claude_md", { projectPath, content });
 }
 
+// --- Plugin Management Commands ---
+
+export interface PluginInfo {
+  name: string;
+  version: string;
+  enabled: boolean;
+}
+
+export async function listPlugins(): Promise<PluginInfo[]> {
+  return invoke("list_plugins");
+}
+
+export async function installPlugin(name: string): Promise<string> {
+  return invoke("install_plugin", { name });
+}
+
+export async function removePlugin(name: string): Promise<string> {
+  return invoke("remove_plugin", { name });
+}
+
 // --- Agent Team Commands ---
 
 export async function getAgentTeams(): Promise<AgentTeam[]> {

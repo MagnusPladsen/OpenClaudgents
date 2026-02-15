@@ -9,6 +9,7 @@ import { CommandPalette, type PaletteAction } from "../common/CommandPalette";
 import { SessionPickerDialog } from "../common/SessionPickerDialog";
 import { RewindDialog } from "../common/RewindDialog";
 import { RestoreDialog } from "../common/RestoreDialog";
+import { PluginManagerDialog } from "../common/PluginManagerDialog";
 import { SettingsDialog } from "../settings/SettingsDialog";
 import { ToastContainer } from "../common/Toast";
 import { useSessionStore } from "../../stores/sessionStore";
@@ -29,6 +30,7 @@ export function AppShell() {
   const [showSessionPicker, setShowSessionPicker] = useState(false);
   const [showRewindDialog, setShowRewindDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [showPluginManager, setShowPluginManager] = useState(false);
   const [previewInitialTab, setPreviewInitialTab] = useState<Tab | null>(null);
   const [welcomeKey, setWelcomeKey] = useState(0);
 
@@ -93,6 +95,7 @@ export function AppShell() {
     showSessionPicker: () => setShowSessionPicker(true),
     showRewindDialog: () => setShowRewindDialog(true),
     showRestoreDialog: () => setShowRestoreDialog(true),
+    showPluginManager: () => setShowPluginManager(true),
     setTheme,
     setPlanMode: (enabled: boolean) => useChatStore.getState().setPlanMode(enabled),
     getPlanMode: () => useChatStore.getState().planMode,
@@ -390,6 +393,12 @@ export function AppShell() {
         isOpen={showRestoreDialog}
         onClose={() => setShowRestoreDialog(false)}
         onRestore={handleRestore}
+      />
+
+      {/* Plugin manager dialog (/plugins) */}
+      <PluginManagerDialog
+        isOpen={showPluginManager}
+        onClose={() => setShowPluginManager(false)}
       />
 
       {/* Toast notifications */}
