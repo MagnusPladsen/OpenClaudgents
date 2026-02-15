@@ -1,7 +1,7 @@
 import { SLASH_COMMANDS, CATEGORY_LABELS } from "./commands";
 import { estimateCost, formatCost, getModelDisplayName } from "./cost";
 import { BUILT_IN_THEMES } from "./theme";
-import { detectClaudeCli, getGitStatus, getClaudeTodos, updateClaudeMd, killSession, discoverCustomSkills, getMcpServers } from "./tauri";
+import { detectClaudeCli, getGitStatus, getClaudeTodos, updateClaudeMd, killSession, discoverCustomSkills, getMcpServers, listWorktrees } from "./tauri";
 import type { ParsedSlashCommand, CommandCategory } from "./commands";
 import type { Session, ChatMessage } from "./types";
 
@@ -473,6 +473,44 @@ export async function executeCommand(
       }
 
       ctx.addSystemMessage(report);
+      return true;
+    }
+
+    case "worktree": {
+      const session = ctx.getActiveSession();
+      if (!session) {
+        ctx.addSystemMessage("No active session.");
+        return true;
+      }
+
+      if (args === "list") {
+        try {
+          const worktrees = await listWorktrees(session.projectPath);
+          if (worktrees.length === 0) {
+            ctx.addSystemMessage("No worktrees found for this project.");
+          } else {
+            const lines = worktrees.map((w) => `- \`${w}\``);
+            ctx.addSystemMessage(
+              `**Worktrees for ${session.projectPath}** (${worktrees.length})\n${lines.join("\n")}`,
+            );
+          }
+        } catch (err) {
+          ctx.addSystemMessage(`Failed to list worktrees: ${err}`);
+        }
+      } else {
+        if (session.worktreePath) {
+          ctx.addSystemMessage(
+            `This session is running in a worktree at \`${session.worktreePath}\`\n\n` +
+            `Original project: \`${session.projectPath}\`\n\n` +
+            `Use **/worktree list** to see all worktrees for this project.`,
+          );
+        } else {
+          ctx.addSystemMessage(
+            "This session is using the project folder directly.\n\n" +
+            "Use **/worktree list** to see all worktrees for this project.",
+          );
+        }
+      }
       return true;
     }
 
