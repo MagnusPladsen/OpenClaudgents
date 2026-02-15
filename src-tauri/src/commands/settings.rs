@@ -414,6 +414,96 @@ fn find_claude_cli() -> Result<String, String> {
     Err("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code".to_string())
 }
 
+// --- MCP Server Management ---
+
+/// Add an MCP server to ~/.claude/settings.json
+#[tauri::command]
+pub async fn add_mcp_server(
+    name: String,
+    command: String,
+    args: Vec<String>,
+) -> Result<(), String> {
+    modify_mcp_settings(|mcp| {
+        let mut server = serde_json::Map::new();
+        server.insert("command".to_string(), serde_json::Value::String(command));
+        server.insert(
+            "args".to_string(),
+            serde_json::Value::Array(args.into_iter().map(serde_json::Value::String).collect()),
+        );
+        mcp.insert(name, serde_json::Value::Object(server));
+    })
+}
+
+/// Remove an MCP server from ~/.claude/settings.json
+#[tauri::command]
+pub async fn remove_mcp_server(name: String) -> Result<(), String> {
+    modify_mcp_settings(|mcp| {
+        mcp.remove(&name);
+    })
+}
+
+/// Toggle an MCP server's enabled/disabled state. Returns new enabled state.
+#[tauri::command]
+pub async fn toggle_mcp_server(name: String) -> Result<bool, String> {
+    let mut new_enabled = true;
+    modify_mcp_settings(|mcp| {
+        if let Some(server) = mcp.get_mut(&name).and_then(|v| v.as_object_mut()) {
+            let currently_disabled = server
+                .get("disabled")
+                .and_then(|d| d.as_bool())
+                .unwrap_or(false);
+            new_enabled = currently_disabled; // flip: was disabled → now enabled
+            if new_enabled {
+                server.remove("disabled");
+            } else {
+                server.insert("disabled".to_string(), serde_json::Value::Bool(true));
+            }
+        }
+    })?;
+    Ok(new_enabled)
+}
+
+/// Helper: read settings.json, modify the mcpServers section, write back
+fn modify_mcp_settings(modify: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>)) -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let settings_path = home.join(".claude").join("settings.json");
+
+    let mut config: serde_json::Value = if settings_path.exists() {
+        let content = std::fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read settings.json: {}", e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse settings.json: {}", e))?
+    } else {
+        serde_json::json!({})
+    };
+
+    let obj = config.as_object_mut().ok_or("settings.json is not an object")?;
+
+    if !obj.contains_key("mcpServers") {
+        obj.insert("mcpServers".to_string(), serde_json::json!({}));
+    }
+
+    let mcp = obj
+        .get_mut("mcpServers")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("mcpServers is not an object")?;
+
+    modify(mcp);
+
+    // Ensure parent dir exists
+    if let Some(parent) = settings_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create .claude dir: {}", e))?;
+    }
+
+    let formatted = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    std::fs::write(&settings_path, formatted)
+        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+
+    Ok(())
+}
+
 /// Write/update the CLAUDE.md file in a project directory
 #[tauri::command]
 pub async fn update_claude_md(project_path: String, content: String) -> Result<(), String> {
