@@ -301,6 +301,119 @@ fn parse_frontmatter(content: &str, default_name: &str) -> (String, String) {
     (name, description)
 }
 
+// --- Plugin Management ---
+
+/// A plugin entry from `claude plugin list`
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInfo {
+    pub name: String,
+    pub version: String,
+    pub enabled: bool,
+}
+
+/// List installed Claude Code plugins by running `claude plugin list`
+#[tauri::command]
+pub async fn list_plugins() -> Result<Vec<PluginInfo>, String> {
+    let cli = find_claude_cli()?;
+    let output = std::process::Command::new(&cli)
+        .args(["plugin", "list", "--json"])
+        .output()
+        .map_err(|e| format!("Failed to run claude plugin list: {}", e))?;
+
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if let Ok(plugins) = serde_json::from_str::<Vec<PluginInfo>>(&stdout) {
+            return Ok(plugins);
+        }
+    }
+
+    // Fallback: try plain text output
+    let plain_output = std::process::Command::new(&cli)
+        .args(["plugin", "list"])
+        .output()
+        .map_err(|e| format!("Failed to run claude plugin list: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&plain_output.stdout);
+    let plugins: Vec<PluginInfo> = stdout
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.splitn(2, ' ').collect();
+            PluginInfo {
+                name: parts.first().unwrap_or(&"").to_string(),
+                version: parts.get(1).unwrap_or(&"").trim().to_string(),
+                enabled: true,
+            }
+        })
+        .collect();
+    Ok(plugins)
+}
+
+/// Install a Claude Code plugin
+#[tauri::command]
+pub async fn install_plugin(name: String) -> Result<String, String> {
+    let cli = find_claude_cli()?;
+    let output = std::process::Command::new(&cli)
+        .args(["plugin", "add", &name])
+        .output()
+        .map_err(|e| format!("Failed to install plugin: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Remove a Claude Code plugin
+#[tauri::command]
+pub async fn remove_plugin(name: String) -> Result<String, String> {
+    let cli = find_claude_cli()?;
+    let output = std::process::Command::new(&cli)
+        .args(["plugin", "remove", &name])
+        .output()
+        .map_err(|e| format!("Failed to remove plugin: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+}
+
+/// Find the claude CLI binary path (sync version)
+fn find_claude_cli() -> Result<String, String> {
+    // Check common install locations first (works for GUI-launched apps)
+    let mut candidates: Vec<String> = vec![
+        "/opt/homebrew/bin/claude".to_string(),
+        "/usr/local/bin/claude".to_string(),
+        "/usr/bin/claude".to_string(),
+    ];
+
+    if let Some(home) = dirs::home_dir() {
+        let home = home.to_string_lossy();
+        candidates.push(format!("{}/.npm/bin/claude", home));
+        candidates.push(format!("{}/.local/bin/claude", home));
+    }
+
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return Ok(path.to_string());
+        }
+    }
+
+    // Try PATH via `which`
+    if let Ok(output) = std::process::Command::new("which").arg("claude").output() {
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path.is_empty() {
+                return Ok(path);
+            }
+        }
+    }
+
+    Err("Claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code".to_string())
+}
+
 /// Write/update the CLAUDE.md file in a project directory
 #[tauri::command]
 pub async fn update_claude_md(project_path: String, content: String) -> Result<(), String> {
