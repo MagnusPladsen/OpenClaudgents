@@ -11,7 +11,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+      <div className="flex flex-col items-center gap-3 px-5 py-8 text-center">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-border/60 text-text-muted">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -26,8 +26,12 @@ export function SessionList({ onSelectSession }: SessionListProps) {
     );
   }
 
-  // Group sessions by project path
-  const grouped = sessions.reduce<Record<string, typeof sessions>>(
+  // Separate pinned and unpinned sessions
+  const pinned = sessions.filter((s) => s.pinned);
+  const unpinned = sessions.filter((s) => !s.pinned);
+
+  // Group unpinned sessions by project path
+  const grouped = unpinned.reduce<Record<string, typeof sessions>>(
     (acc, session) => {
       const project = session.projectPath;
       if (!acc[project]) acc[project] = [];
@@ -40,18 +44,60 @@ export function SessionList({ onSelectSession }: SessionListProps) {
   let itemIndex = 0;
 
   return (
-    <div className="py-2">
+    <div className="px-2 py-2">
+      {/* Pinned section */}
+      {pinned.length > 0 && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 px-3 py-2.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-warning">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+              Pinned
+            </span>
+          </div>
+          {pinned.map((session) => {
+            const idx = itemIndex++;
+            return (
+              <div
+                key={session.id}
+                className="animate-stagger-in"
+                style={{ animationDelay: `${idx * 50}ms` }}
+              >
+                <SessionItem
+                  session={session}
+                  isActive={session.id === activeSessionId}
+                  isPinned
+                  onTogglePin={() => useSessionStore.getState().unpinSession(session.id)}
+                  onClick={() => onSelectSession(session.id)}
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Threads section */}
+      {unpinned.length > 0 && pinned.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          <span className="h-px w-3 bg-border/40" />
+          <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+            Threads
+          </span>
+        </div>
+      )}
+
       {Object.entries(grouped).map(([projectPath, projectSessions]) => (
-        <div key={projectPath} className="mb-3">
-          {/* Project group header — uppercase tracked with accent line */}
-          <div className="flex items-center gap-2 px-4 py-1.5">
+        <div key={projectPath} className="mb-4">
+          {/* Project group header */}
+          <div className="flex items-center gap-2 px-3 py-2.5">
             <span className="h-px w-3 bg-accent/40" />
             <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
               {projectPath.split("/").pop() || projectPath}
             </span>
           </div>
 
-          {/* Sessions in this project — staggered entrance */}
+          {/* Sessions in this project */}
           {projectSessions.map((session) => {
             const idx = itemIndex++;
             return (
@@ -63,6 +109,7 @@ export function SessionList({ onSelectSession }: SessionListProps) {
                 <SessionItem
                   session={session}
                   isActive={session.id === activeSessionId}
+                  onTogglePin={() => useSessionStore.getState().pinSession(session.id)}
                   onClick={() => onSelectSession(session.id)}
                 />
               </div>

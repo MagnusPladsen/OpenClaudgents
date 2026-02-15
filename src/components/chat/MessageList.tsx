@@ -30,7 +30,7 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="space-y-5 p-6">
+    <div className="space-y-6 px-8 py-8">
       {messages.map((msg, i) => (
         <div
           key={msg.uuid}

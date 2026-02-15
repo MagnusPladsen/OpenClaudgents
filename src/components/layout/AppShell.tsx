@@ -2,12 +2,14 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { Sidebar } from "./Sidebar";
 import { ChatPane } from "./ChatPane";
 import { PreviewPane } from "./PreviewPane";
+import { TopToolbar } from "./TopToolbar";
 import { StatusBar } from "./StatusBar";
 import { TerminalDrawer } from "./TerminalDrawer";
 import { CommandPalette, type PaletteAction } from "../common/CommandPalette";
 import { SessionPickerDialog } from "../common/SessionPickerDialog";
 import { RewindDialog } from "../common/RewindDialog";
 import { SettingsDialog } from "../settings/SettingsDialog";
+import { ToastContainer } from "../common/Toast";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -43,6 +45,11 @@ export function AppShell() {
     () => setShowPreview((p) => !p),
     [],
   );
+
+  const openPreviewTab = useCallback((tab: Tab) => {
+    setPreviewInitialTab(tab);
+    setShowPreview(true);
+  }, []);
 
   const handleNewSession = useCallback(() => {
     setActiveSession(null);
@@ -261,26 +268,37 @@ export function AppShell() {
         {/* Left sidebar */}
         <Sidebar onNewSession={handleNewSession} />
 
-        {/* Center chat pane */}
-        <ChatPane
-          onTogglePreview={togglePreview}
-          showPreview={showPreview}
-          welcomeKey={welcomeKey}
-          onSlashCommand={handleSlashCommand}
-        />
+        {/* Right side: toolbar + chat + preview */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Top toolbar (Codex-style) */}
+          <TopToolbar
+            onTogglePreview={togglePreview}
+            onOpenPreviewTab={openPreviewTab}
+            showPreview={showPreview}
+          />
 
-        {/* Right preview pane (collapsible) */}
-        {showPreview && (
-          <div className="animate-fade-in">
-            <PreviewPane
-              onClose={() => {
-                setShowPreview(false);
-                setPreviewInitialTab(null);
-              }}
-              initialTab={previewInitialTab ?? undefined}
+          {/* Chat + Preview row */}
+          <div className="flex min-h-0 flex-1">
+            {/* Center chat pane */}
+            <ChatPane
+              welcomeKey={welcomeKey}
+              onSlashCommand={handleSlashCommand}
             />
+
+            {/* Right preview pane (collapsible) */}
+            {showPreview && (
+              <div className="animate-panel-open">
+                <PreviewPane
+                  onClose={() => {
+                    setShowPreview(false);
+                    setPreviewInitialTab(null);
+                  }}
+                  initialTab={previewInitialTab ?? undefined}
+                />
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Terminal drawer (Cmd+J) */}
@@ -323,6 +341,9 @@ export function AppShell() {
         onClose={() => setShowRewindDialog(false)}
         onRewind={handleRewind}
       />
+
+      {/* Toast notifications */}
+      <ToastContainer />
     </div>
   );
 }

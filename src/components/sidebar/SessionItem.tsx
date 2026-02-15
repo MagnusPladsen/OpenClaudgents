@@ -3,10 +3,12 @@ import type { Session } from "../../lib/types";
 interface SessionItemProps {
   session: Session;
   isActive: boolean;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
   onClick: () => void;
 }
 
-export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
+export function SessionItem({ session, isActive, isPinned, onTogglePin, onClick }: SessionItemProps) {
   const statusColor =
     session.status === "active"
       ? "bg-success"
@@ -21,13 +23,13 @@ export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
   return (
     <button
       onClick={onClick}
-      className={`group relative flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-all duration-200 ${
+      className={`group relative mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all duration-200 ${
         isActive
           ? "bg-accent/10 text-text shadow-sm shadow-accent/10"
-          : "text-text-secondary hover:-translate-y-px hover:bg-bg-tertiary/50 hover:text-text hover:shadow-md hover:shadow-black/10"
+          : "text-text-secondary hover:bg-bg-tertiary/50 hover:text-text"
       }`}
     >
-      {/* Active accent bar — thicker */}
+      {/* Active accent bar */}
       {isActive && (
         <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent shadow-sm shadow-accent/30" />
       )}
@@ -57,6 +59,29 @@ export function SessionItem({ session, isActive, onClick }: SessionItemProps) {
       <span className="min-w-0 flex-1 truncate font-medium">
         {session.name || `Session ${session.id.slice(0, 8)}`}
       </span>
+
+      {/* Pin icon */}
+      {onTogglePin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          className={`flex-shrink-0 transition-all duration-200 ${
+            isPinned
+              ? "text-warning"
+              : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
+          }`}
+          aria-label={isPinned ? "Unpin session" : "Pin session"}
+          title={isPinned ? "Unpin" : "Pin"}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+            fill={isPinned ? "currentColor" : "none"}
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        </button>
+      )}
 
       {/* Model pill — visible on hover */}
       {session.model && (

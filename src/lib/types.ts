@@ -13,6 +13,7 @@ export interface Session {
   isAgentTeam: boolean;
   teamRole: "lead" | "teammate" | null;
   parentSessionId: string | null;
+  pinned: boolean;
 }
 
 export interface ChatMessage {

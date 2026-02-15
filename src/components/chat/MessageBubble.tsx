@@ -24,13 +24,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     >
       {/* Avatar dot — assistant only */}
       {!isUser && !isSystem && (
-        <div className="mr-2.5 mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[11px] font-semibold text-info">
+        <div className="mr-3 mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-info/15 text-[11px] font-semibold text-info">
           C
         </div>
       )}
 
       <div
-        className={`max-w-[80%] px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/10 ${bubbleShape} ${
+        className={`max-w-[75%] px-5 py-4 transition-all duration-200 ${bubbleShape} ${
           isSystem
             ? "bg-error/10 text-text"
             : isUser
@@ -70,7 +70,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
       {/* Avatar dot — user only */}
       {isUser && (
-        <div className="ml-2.5 mt-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
+        <div className="ml-3 mt-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent">
           Y
         </div>
       )}

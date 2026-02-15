@@ -1,20 +1,20 @@
 import { useState, useCallback } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import { createSession, sendMessage, createWorktree } from "../../lib/tauri";
+import { useToastStore } from "../../stores/toastStore";
 import { MessageList } from "../chat/MessageList";
 import { Composer } from "../chat/Composer";
 import { WelcomeScreen } from "../chat/WelcomeScreen";
 import { WorktreeDialog } from "../common/WorktreeDialog";
 
 interface ChatPaneProps {
-  onTogglePreview: () => void;
-  showPreview: boolean;
   welcomeKey?: number;
   onSlashCommand?: (command: string) => boolean;
 }
 
-export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashCommand }: ChatPaneProps) {
+export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
@@ -22,15 +22,12 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
   const messages = useChatStore((s) => s.messages);
   const addMessage = useChatStore((s) => s.addMessage);
   const isStreaming = useChatStore((s) => s.isStreaming);
-  const planMode = useChatStore((s) => s.planMode);
+  const autoWorktree = useSettingsStore((s) => s.autoWorktree);
+  const addToast = useToastStore((s) => s.addToast);
   const [welcomeError, setWelcomeError] = useState<string | null>(null);
   const [pendingProjectPath, setPendingProjectPath] = useState<string | null>(null);
   const [conflictSessionName, setConflictSessionName] = useState("");
   const [showWorktreeDialog, setShowWorktreeDialog] = useState(false);
-
-  const activeSession = useSessionStore((s) => {
-    return s.sessions.find((sess) => sess.id === s.activeSessionId);
-  });
 
   const handleCreateSession = useCallback(
     async (projectPath: string) => {
@@ -45,6 +42,27 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
       );
 
       if (conflict) {
+        if (autoWorktree) {
+          // Auto-create worktree without dialog
+          try {
+            const tempId = crypto.randomUUID();
+            const worktreeInfo = await createWorktree(tempId, projectPath);
+            const session = await createSession(worktreeInfo.path);
+            addSession(session);
+            setActiveSession(session.id);
+            updateSession(session.id, {
+              worktreePath: worktreeInfo.path,
+              projectPath,
+            });
+            const projectName = projectPath.split("/").pop() || projectPath;
+            addToast(`Created isolated worktree for ${projectName}`, "success");
+          } catch (err) {
+            console.error("Failed to create worktree session:", err);
+            setWelcomeError(String(err));
+          }
+          return;
+        }
+
         setPendingProjectPath(projectPath);
         setConflictSessionName(conflict.name || `Session ${conflict.id.slice(0, 8)}`);
         setShowWorktreeDialog(true);
@@ -61,7 +79,7 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
         setWelcomeError(String(err));
       }
     },
-    [addSession, setActiveSession],
+    [addSession, setActiveSession, updateSession, autoWorktree, addToast],
   );
 
   const handleWorktreeChoice = useCallback(
@@ -170,50 +188,6 @@ export function ChatPane({ onTogglePreview, showPreview, welcomeKey, onSlashComm
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-bg" aria-label="Chat">
-      {/* Chat header */}
-      <div className="relative flex items-center justify-between px-5 py-3">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold tracking-tight text-text">Chat</span>
-          {activeSession?.model && (
-            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
-              {activeSession.model.includes("sonnet") ? "Sonnet" : activeSession.model.includes("opus") ? "Opus" : "Haiku"}
-            </span>
-          )}
-          {planMode && (
-            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-medium text-warning">
-              Plan Mode
-            </span>
-          )}
-          {activeSession?.worktreePath && (
-            <span
-              className="flex items-center gap-1 rounded-full bg-info/10 px-2 py-0.5 text-[10px] font-medium text-info"
-              title={activeSession.worktreePath}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="6" x2="6" y1="3" y2="15" />
-                <circle cx="18" cy="6" r="3" />
-                <circle cx="6" cy="18" r="3" />
-                <path d="M18 9a9 9 0 0 1-9 9" />
-              </svg>
-              Worktree
-            </span>
-          )}
-          <span className="text-xs text-text-muted">
-            {messages.length} messages
-          </span>
-        </div>
-        <button
-          onClick={onTogglePreview}
-          aria-label={showPreview ? "Hide preview pane" : "Show preview pane"}
-          className="rounded-lg px-2.5 py-1 text-xs text-text-secondary transition-all duration-200 hover:bg-bg-tertiary hover:text-text"
-        >
-          {showPreview ? "Hide Preview" : "Show Preview"}
-        </button>
-        {/* Bottom gradient border */}
-        <div className="pointer-events-none absolute bottom-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-      </div>
-
       {/* Messages */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <MessageList messages={messages} />
