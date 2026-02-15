@@ -7,12 +7,22 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
+const MODELS = [
+  { id: "sonnet", label: "Sonnet 4.5" },
+  { id: "opus", label: "Opus 4.6" },
+  { id: "haiku", label: "Haiku 4.5" },
+];
+
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const fontSize = useSettingsStore((s) => s.fontSize);
   const setFontSize = useSettingsStore((s) => s.setFontSize);
   const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const defaultModel = useSettingsStore((s) => s.defaultModel);
+  const setDefaultModel = useSettingsStore((s) => s.setDefaultModel);
+  const autoWorktree = useSettingsStore((s) => s.autoWorktree);
+  const setAutoWorktree = useSettingsStore((s) => s.setAutoWorktree);
 
   // Close on Escape
   useEffect(() => {
@@ -71,6 +81,28 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             <ThemePicker />
           </SettingsSection>
 
+          {/* Default Model */}
+          <SettingsSection title="Default Model">
+            <div className="flex gap-2">
+              {MODELS.map((model) => (
+                <button
+                  key={model.id}
+                  onClick={() => setDefaultModel(model.id)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium transition-all ${
+                    defaultModel === model.id
+                      ? "bg-accent/15 text-accent shadow-sm shadow-accent/10"
+                      : "bg-bg-tertiary/40 text-text-muted hover:bg-bg-tertiary/60 hover:text-text"
+                  }`}
+                >
+                  {model.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-text-muted">
+              Default model for new sessions. Can be changed per-message in the composer.
+            </p>
+          </SettingsSection>
+
           {/* Font Size */}
           <SettingsSection title="Font Size">
             <div className="flex items-center gap-4">
@@ -87,6 +119,25 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
                 {fontSize}px
               </span>
             </div>
+          </SettingsSection>
+
+          {/* Worktrees */}
+          <SettingsSection title="Worktrees">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={autoWorktree}
+                onChange={(e) => setAutoWorktree(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-accent"
+              />
+              <span className="text-sm text-text">
+                Auto-create worktree for concurrent sessions
+              </span>
+            </label>
+            <p className="mt-1.5 text-xs text-text-muted">
+              When creating a new session on a project that already has an active session,
+              automatically create an isolated worktree instead of showing a dialog.
+            </p>
           </SettingsSection>
 
           {/* Notifications */}

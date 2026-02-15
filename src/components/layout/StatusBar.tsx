@@ -45,7 +45,7 @@ export function StatusBar({ showTerminal, onToggleTerminal }: StatusBarProps) {
   const isNearCapacity = contextPercent > 80;
 
   return (
-    <footer className="flex h-9 items-center justify-between bg-bg-secondary px-3 text-xs text-text-muted shadow-[0_-2px_12px_-4px_rgba(0,0,0,0.2)]" aria-label="Status bar">
+    <footer className="flex h-10 items-center justify-between border-t border-border/20 bg-bg-secondary/80 px-4 text-xs text-text-muted backdrop-blur-sm" aria-label="Status bar">
       <div className="flex items-center gap-2">
         {/* Session status */}
         {activeSession && (
