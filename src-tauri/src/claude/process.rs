@@ -68,20 +68,31 @@ impl ProcessManager {
         }
     }
 
-    /// Find the claude CLI binary path
+    /// Find the claude CLI binary path.
+    /// Checks `which` first, then falls back to common install locations
+    /// (important for GUI apps that don't inherit shell PATH).
     pub async fn detect_cli_path() -> Option<String> {
-        let output = Command::new("which")
-            .arg("claude")
-            .output()
-            .await
-            .ok()?;
-
-        if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return Some(path);
+        // Try `which` first (works when launched from terminal)
+        if let Ok(output) = Command::new("which").arg("claude").output().await {
+            if output.status.success() {
+                let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Some(path);
+                }
             }
         }
+
+        // Fall back to common install locations (works for GUI-launched apps)
+        for path in &[
+            "/opt/homebrew/bin/claude",
+            "/usr/local/bin/claude",
+            "/usr/bin/claude",
+        ] {
+            if std::path::Path::new(path).exists() {
+                return Some(path.to_string());
+            }
+        }
+
         None
     }
 
@@ -89,12 +100,16 @@ impl ProcessManager {
         if let Some(path) = provided {
             return Ok(path);
         }
-        for path in &["/usr/local/bin/claude", "/opt/homebrew/bin/claude"] {
+        for path in &[
+            "/opt/homebrew/bin/claude",
+            "/usr/local/bin/claude",
+            "/usr/bin/claude",
+        ] {
             if std::path::Path::new(path).exists() {
                 return Ok(path.to_string());
             }
         }
-        Err("Claude CLI not found. Install it with: npm install -g @anthropic-ai/claude-code"
+        Err("Claude CLI not found. Install via Homebrew (brew install claude-code) or npm (npm install -g @anthropic-ai/claude-code)"
             .to_string())
     }
 

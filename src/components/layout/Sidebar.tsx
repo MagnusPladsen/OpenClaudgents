@@ -101,7 +101,10 @@ export function Sidebar() {
       <div className="border-t border-border p-3">
         <div className="flex items-center gap-2">
           <div className="flex-1">
-            <NewSessionButton />
+            <NewSessionButton onClick={() => {
+              setActiveSession(null as unknown as string);
+              setMessages([]);
+            }} />
           </div>
           <button
             onClick={() => setShowSettings(true)}
