@@ -95,6 +95,94 @@ pub async fn git_push(path: String) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&output.stderr).to_string()) // git push outputs to stderr
 }
 
+/// A single commit entry for the restore dialog
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct GitCommitInfo {
+    pub hash: String,
+    pub short_hash: String,
+    pub message: String,
+    pub author: String,
+    pub date: String,
+}
+
+/// Get recent git commits for restore dialog
+#[tauri::command]
+pub async fn git_log_commits(path: String, count: Option<usize>) -> Result<Vec<GitCommitInfo>, String> {
+    let n = count.unwrap_or(20);
+    let output = std::process::Command::new("git")
+        .args(["log", &format!("-{}", n), "--format=%H%n%h%n%s%n%an%n%aI", "--"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("git log failed: {}", e))?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let lines: Vec<&str> = stdout.lines().collect();
+    let mut commits = vec![];
+
+    for chunk in lines.chunks(5) {
+        if chunk.len() < 5 { break; }
+        commits.push(GitCommitInfo {
+            hash: chunk[0].to_string(),
+            short_hash: chunk[1].to_string(),
+            message: chunk[2].to_string(),
+            author: chunk[3].to_string(),
+            date: chunk[4].to_string(),
+        });
+    }
+
+    Ok(commits)
+}
+
+/// Restore working directory to a specific commit's state.
+/// Stashes current changes if dirty, then checks out files from the target commit.
+#[tauri::command]
+pub async fn git_restore_to_commit(path: String, commit_hash: String) -> Result<String, String> {
+    // Check if working directory is dirty
+    let status_output = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("git status failed: {}", e))?;
+
+    let is_dirty = !String::from_utf8_lossy(&status_output.stdout).trim().is_empty();
+    let mut result = String::new();
+
+    // Stash if dirty
+    if is_dirty {
+        let short = &commit_hash[..8.min(commit_hash.len())];
+        let stash_output = std::process::Command::new("git")
+            .args(["stash", "push", "-m", &format!("openclaudgents-restore-{}", short)])
+            .current_dir(&path)
+            .output()
+            .map_err(|e| format!("git stash failed: {}", e))?;
+
+        if !stash_output.status.success() {
+            return Err(format!("Failed to stash changes: {}", String::from_utf8_lossy(&stash_output.stderr)));
+        }
+        result.push_str("Stashed current changes. ");
+    }
+
+    // Restore files from the target commit
+    let restore_output = std::process::Command::new("git")
+        .args(["checkout", &commit_hash, "--", "."])
+        .current_dir(&path)
+        .output()
+        .map_err(|e| format!("git checkout failed: {}", e))?;
+
+    if !restore_output.status.success() {
+        return Err(format!("Failed to restore: {}", String::from_utf8_lossy(&restore_output.stderr)));
+    }
+
+    let short = &commit_hash[..8.min(commit_hash.len())];
+    result.push_str(&format!("Restored files to commit {}.", short));
+    Ok(result)
+}
+
 /// Clean up old worktrees
 #[tauri::command]
 pub async fn cleanup_worktrees(

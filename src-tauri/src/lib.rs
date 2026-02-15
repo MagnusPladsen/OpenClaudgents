@@ -39,6 +39,8 @@ pub fn run() {
             commands::git::git_stage_all,
             commands::git::git_commit,
             commands::git::git_push,
+            commands::git::git_log_commits,
+            commands::git::git_restore_to_commit,
             commands::settings::get_claude_md,
             commands::settings::update_claude_md,
             commands::settings::get_claude_todos,
