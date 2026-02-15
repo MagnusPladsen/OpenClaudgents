@@ -75,12 +75,13 @@ pub async fn create_session(
 pub async fn send_message(
     session_id: String,
     message: String,
+    project_path: String,
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
     state
         .process_manager
-        .send_message(&session_id, &message, app)
+        .send_message(&session_id, &message, &project_path, app)
         .await
 }
 

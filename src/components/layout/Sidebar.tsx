@@ -87,11 +87,15 @@ export function Sidebar() {
 
   return (
     <nav className="flex w-64 flex-col border-r border-border bg-bg-secondary" aria-label="Sessions sidebar">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <div className="relative flex items-center justify-between px-4 py-3">
         <h1 className="text-sm font-semibold text-text">OpenClaudgents</h1>
-        <span className="text-xs text-text-muted">
-          {sessions.length}
-        </span>
+        {sessions.length > 0 && (
+          <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-medium text-accent">
+            {sessions.length}
+          </span>
+        )}
+        {/* Bottom gradient fade instead of hard border */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -102,7 +106,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <NewSessionButton onClick={() => {
-              setActiveSession(null as unknown as string);
+              setActiveSession(null);
               setMessages([]);
             }} />
           </div>

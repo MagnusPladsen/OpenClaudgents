@@ -110,12 +110,18 @@ export function AppShell() {
         />
 
         {/* Right preview pane (collapsible) */}
-        {showPreview && <PreviewPane onClose={() => setShowPreview(false)} />}
+        {showPreview && (
+          <div className="animate-fade-in">
+            <PreviewPane onClose={() => setShowPreview(false)} />
+          </div>
+        )}
       </div>
 
       {/* Terminal drawer (Cmd+J) */}
       {showTerminal && (
-        <TerminalDrawer onClose={() => setShowTerminal(false)} />
+        <div className="animate-slide-up-drawer">
+          <TerminalDrawer onClose={() => setShowTerminal(false)} />
+        </div>
       )}
 
       {/* Status bar */}

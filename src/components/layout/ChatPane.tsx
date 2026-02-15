@@ -48,6 +48,12 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
     async (message: string) => {
       if (!activeSessionId) return;
 
+      // Look up the active session's project path
+      const session = useSessionStore
+        .getState()
+        .sessions.find((s) => s.id === activeSessionId);
+      const projectPath = session?.projectPath ?? "";
+
       // Add user message to chat immediately
       addMessage({
         uuid: crypto.randomUUID(),
@@ -62,6 +68,7 @@ export function ChatPane({ onTogglePreview, showPreview }: ChatPaneProps) {
         await invoke("send_message", {
           sessionId: activeSessionId,
           message,
+          projectPath,
         });
       } catch (err) {
         console.error("Failed to send message:", err);

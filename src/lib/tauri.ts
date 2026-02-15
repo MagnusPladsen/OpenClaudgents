@@ -36,8 +36,9 @@ export async function createSession(
 export async function sendMessage(
   sessionId: string,
   message: string,
+  projectPath: string,
 ): Promise<void> {
-  return invoke("send_message", { sessionId, message });
+  return invoke("send_message", { sessionId, message, projectPath });
 }
 
 export async function killSession(sessionId: string): Promise<void> {
@@ -183,6 +184,14 @@ export function onSessionStatusChanged(
 ): Promise<UnlistenFn> {
   return listen("claude:session_status", (event) => {
     callback(event.payload as { sessionId: string; status: string });
+  });
+}
+
+export function onClaudeStderr(
+  callback: (event: { sessionId: string; text: string }) => void,
+): Promise<UnlistenFn> {
+  return listen("claude:stderr", (event) => {
+    callback(event.payload as { sessionId: string; text: string });
   });
 }
 

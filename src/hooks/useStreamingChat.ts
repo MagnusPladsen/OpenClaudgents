@@ -23,6 +23,11 @@ interface SessionStatusEvent {
   status: string;
 }
 
+interface StderrEvent {
+  sessionId: string;
+  text: string;
+}
+
 interface UsageUpdateEvent {
   sessionId: string;
   usage: {
@@ -91,6 +96,23 @@ export function useStreamingChat() {
       }),
     );
 
+    // Stderr output — show as system error messages
+    unlisteners.push(
+      listen<StderrEvent>("claude:stderr", (event) => {
+        const { sessionId, text } = event.payload;
+        if (sessionId === activeSessionId) {
+          addMessage({
+            uuid: crypto.randomUUID(),
+            parentUuid: null,
+            role: "system",
+            content: text,
+            timestamp: new Date().toISOString(),
+            isSidechain: false,
+          });
+        }
+      }),
+    );
+
     // Session status changes
     unlisteners.push(
       listen<SessionStatusEvent>("claude:session_status", (event) => {
@@ -98,6 +120,11 @@ export function useStreamingChat() {
         updateSession(sessionId, {
           status: status as "active" | "paused" | "completed" | "error",
         });
+        // On error, clean up streaming state
+        if (status === "error" && sessionId === activeSessionId) {
+          resetStreamingText();
+          setStreaming(false);
+        }
       }),
     );
 
