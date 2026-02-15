@@ -25,6 +25,7 @@ export interface CommandContext {
   setPlanMode: (enabled: boolean) => void;
   getPlanMode: () => boolean;
   showRewindDialog: () => void;
+  switchModel: (model: string) => Promise<void>;
 }
 
 /**
@@ -126,19 +127,47 @@ export async function executeCommand(
       }
       return true;
 
-    case "model":
-      if (args) {
-        ctx.addSystemMessage(`Model preference set to **${args}**. Will be used for the next session.`);
-      } else {
+    case "model": {
+      const MODELS: Record<string, string> = {
+        sonnet: "claude-sonnet-4-5-20250929",
+        opus: "claude-opus-4-6",
+        haiku: "claude-haiku-4-5-20251001",
+      };
+      if (!args) {
+        const session = ctx.getActiveSession();
+        const current = session?.model ? getModelDisplayName(session.model) : "none";
         ctx.addSystemMessage(
+          `**Current model:** ${current}\n\n` +
           "**Available models:**\n" +
           "- `sonnet` — Claude Sonnet 4.5 (fast, balanced)\n" +
           "- `opus` — Claude Opus 4.6 (most capable)\n" +
           "- `haiku` — Claude Haiku 4.5 (fastest, cheapest)\n\n" +
-          "Usage: **/model <model-name>**",
+          "Usage: **/model <name>**",
         );
+        return true;
+      }
+      const modelId = MODELS[args.toLowerCase()];
+      if (!modelId) {
+        ctx.addSystemMessage(
+          `Unknown model "${args}". Available: sonnet, opus, haiku`,
+        );
+        return true;
+      }
+      {
+        const session = ctx.getActiveSession();
+        if (!session) {
+          ctx.addSystemMessage("No active session. The model will be used for the next session.");
+          return true;
+        }
+        try {
+          await ctx.switchModel(modelId);
+          ctx.addSystemMessage(`Model switched to **${getModelDisplayName(modelId)}**.`);
+        } catch (err) {
+          ctx.addSystemMessage(`Failed to switch model: ${err}`);
+        }
       }
       return true;
+    }
 
     case "rewind": {
       const messages = ctx.getMessages();

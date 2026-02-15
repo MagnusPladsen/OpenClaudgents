@@ -14,6 +14,7 @@ import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { invoke } from "@tauri-apps/api/core";
+import { killSession, createSession } from "../../lib/tauri";
 import { parseSlashCommand, SLASH_COMMANDS } from "../../lib/commands";
 import { executeCommand } from "../../lib/commandHandlers";
 import type { CommandContext } from "../../lib/commandHandlers";
@@ -92,6 +93,18 @@ export function AppShell() {
     setTheme,
     setPlanMode: (enabled: boolean) => useChatStore.getState().setPlanMode(enabled),
     getPlanMode: () => useChatStore.getState().planMode,
+    switchModel: async (model: string) => {
+      const session = useSessionStore.getState().getActiveSession();
+      if (!session) return;
+      const projectPath = session.worktreePath || session.projectPath;
+      try {
+        await killSession(session.id);
+      } catch { /* may already be dead */ }
+      const newSession = await createSession(projectPath, model);
+      useSessionStore.getState().addSession(newSession);
+      setActiveSession(newSession.id);
+      clearMessages();
+    },
   }), [addMessage, clearMessages, handleNewSession, setActiveSession, updateSession, setTheme]);
 
   // Handle slash commands from ChatPane — returns true if handled
