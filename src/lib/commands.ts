@@ -46,6 +46,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: "init", description: "Create template CLAUDE.md", category: "tools" },
   { name: "export", description: "Export chat to clipboard", category: "tools" },
   { name: "plugins", description: "Show skills and MCP servers", category: "tools" },
+  { name: "worktree", description: "Show worktree info or manage worktrees", args: "[list]", category: "tools" },
 
   // Hidden — not available in GUI
   { name: "vim", description: "Not available in GUI", category: "tools", hidden: true },

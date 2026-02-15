@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "./components/layout/AppShell";
 import { useStreamingChat } from "./hooks/useStreamingChat";
 import { useSettingsStore } from "./stores/settingsStore";
-import { detectClaudeCli } from "./lib/tauri";
+import { detectClaudeCli, cleanupWorktrees } from "./lib/tauri";
 
 function App() {
   const [cliMissing, setCliMissing] = useState(false);
@@ -22,6 +22,11 @@ function App() {
         if (!path) setCliMissing(true);
       })
       .catch(() => setCliMissing(true));
+  }, []);
+
+  // Auto-cleanup stale worktrees on startup
+  useEffect(() => {
+    cleanupWorktrees(".", 4, 10).catch(() => {});
   }, []);
 
   return (
