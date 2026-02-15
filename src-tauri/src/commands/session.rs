@@ -6,6 +6,37 @@ use tauri::State;
 use crate::claude::process::{ProcessManager, SpawnOptions};
 use crate::claude::session_store;
 
+/// Resolve shell-style paths: expand `~` to home dir, `.` to current dir
+fn resolve_project_path(path: &str) -> Result<String, String> {
+    let expanded = if path == "~" {
+        dirs::home_dir()
+            .ok_or("Could not determine home directory")?
+            .to_string_lossy()
+            .to_string()
+    } else if path.starts_with("~/") {
+        let home = dirs::home_dir()
+            .ok_or("Could not determine home directory")?;
+        home.join(&path[2..]).to_string_lossy().to_string()
+    } else if path == "." {
+        std::env::current_dir()
+            .map_err(|e| format!("Could not resolve '.': {}", e))?
+            .to_string_lossy()
+            .to_string()
+    } else if path.starts_with("./") {
+        let cwd = std::env::current_dir()
+            .map_err(|e| format!("Could not resolve '.': {}", e))?;
+        cwd.join(&path[2..]).to_string_lossy().to_string()
+    } else {
+        path.to_string()
+    };
+
+    if !std::path::Path::new(&expanded).exists() {
+        return Err(format!("Project path does not exist: {}", expanded));
+    }
+
+    Ok(expanded)
+}
+
 /// Session info returned to the frontend
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +70,7 @@ pub async fn create_session(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<SessionInfo, String> {
+    let project_path = resolve_project_path(&project_path)?;
     let session_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -79,6 +111,7 @@ pub async fn send_message(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<(), String> {
+    let project_path = resolve_project_path(&project_path)?;
     state
         .process_manager
         .send_message(&session_id, &message, &project_path, app)
@@ -122,6 +155,7 @@ pub async fn resume_session(
     state: State<'_, AppState>,
     _app: tauri::AppHandle,
 ) -> Result<SessionInfo, String> {
+    let project_path = resolve_project_path(&project_path)?;
     let session_id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
 
