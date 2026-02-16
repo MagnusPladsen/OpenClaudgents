@@ -1,25 +1,39 @@
-import { useState, useEffect, useCallback } from "react";
-import { listPlugins, installPlugin, removePlugin } from "../../lib/tauri";
-import type { PluginInfo } from "../../lib/tauri";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { discoverPlugins, installPlugin, removePlugin, togglePluginEnabled } from "../../lib/tauri";
+import type { DiscoverablePlugin } from "../../lib/tauri";
 
 interface PluginManagerDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+type Tab = "discover" | "installed";
+
+function formatInstallCount(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, "")}K`;
+  }
+  return String(n);
+}
+
 export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProps) {
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [plugins, setPlugins] = useState<DiscoverablePlugin[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [installName, setInstallName] = useState("");
-  const [installing, setInstalling] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("discover");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [installing, setInstalling] = useState<string | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [toggling, setToggling] = useState<string | null>(null);
 
   const fetchPlugins = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const result = await listPlugins();
+      const result = await discoverPlugins();
       setPlugins(result);
     } catch (err) {
       setError(String(err));
@@ -28,34 +42,32 @@ export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProp
     }
   }, []);
 
-  // Fetch on open
   useEffect(() => {
     if (isOpen) {
       fetchPlugins();
-      setInstallName("");
+      setSearchQuery("");
+      setActiveTab("discover");
     }
   }, [isOpen, fetchPlugins]);
 
-  const handleInstall = useCallback(async () => {
-    if (!installName.trim()) return;
-    setInstalling(true);
+  const handleInstall = useCallback(async (pluginId: string) => {
+    setInstalling(pluginId);
     setError(null);
     try {
-      await installPlugin(installName.trim());
-      setInstallName("");
+      await installPlugin(pluginId);
       await fetchPlugins();
     } catch (err) {
       setError(String(err));
     } finally {
-      setInstalling(false);
+      setInstalling(null);
     }
-  }, [installName, fetchPlugins]);
+  }, [fetchPlugins]);
 
-  const handleRemove = useCallback(async (name: string) => {
-    setRemoving(name);
+  const handleRemove = useCallback(async (pluginId: string) => {
+    setRemoving(pluginId);
     setError(null);
     try {
-      await removePlugin(name);
+      await removePlugin(pluginId);
       await fetchPlugins();
     } catch (err) {
       setError(String(err));
@@ -64,7 +76,19 @@ export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProp
     }
   }, [fetchPlugins]);
 
-  // Keyboard: Escape to close
+  const handleToggle = useCallback(async (pluginId: string) => {
+    setToggling(pluginId);
+    setError(null);
+    try {
+      await togglePluginEnabled(pluginId);
+      await fetchPlugins();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setToggling(null);
+    }
+  }, [fetchPlugins]);
+
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -77,10 +101,31 @@ export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProp
     return () => window.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
 
+  const installedCount = useMemo(
+    () => plugins.filter((p) => p.installed).length,
+    [plugins],
+  );
+
+  const filteredPlugins = useMemo(() => {
+    const query = searchQuery.toLowerCase().trim();
+    let list = activeTab === "installed"
+      ? plugins.filter((p) => p.installed)
+      : plugins;
+    if (query) {
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description.toLowerCase().includes(query) ||
+          p.author.toLowerCase().includes(query),
+      );
+    }
+    return list;
+  }, [plugins, activeTab, searchQuery]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
+    <div className="animate-fade-in fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" onClick={onClose} />
 
@@ -89,7 +134,7 @@ export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProp
         role="dialog"
         aria-modal="true"
         aria-label="Plugin Manager"
-        className="animate-scale-in-spring relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/30 backdrop-blur-xl"
+        className="animate-scale-in-spring relative flex w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/10 bg-bg-secondary shadow-2xl shadow-black/30 backdrop-blur-xl"
       >
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-white/5 px-5 py-4">
@@ -121,76 +166,139 @@ export function PluginManagerDialog({ isOpen, onClose }: PluginManagerDialogProp
           </button>
         </div>
 
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-white/5 px-5 pt-2">
+          <button
+            onClick={() => setActiveTab("discover")}
+            className={`rounded-t-lg px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === "discover"
+                ? "border-b-2 border-accent text-accent"
+                : "text-text-muted hover:text-text"
+            }`}
+          >
+            Discover
+          </button>
+          <button
+            onClick={() => setActiveTab("installed")}
+            className={`rounded-t-lg px-3 py-2 text-xs font-medium transition-colors ${
+              activeTab === "installed"
+                ? "border-b-2 border-accent text-accent"
+                : "text-text-muted hover:text-text"
+            }`}
+          >
+            Installed ({installedCount})
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-5 pt-3 pb-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search plugins..."
+            className="w-full rounded-lg border border-border/30 bg-bg px-3 py-2 text-sm text-text placeholder-text-muted/50 outline-none transition-colors focus:border-accent/50"
+          />
+        </div>
+
         {/* Error banner */}
         {error && (
-          <div className="mx-5 mt-3 rounded-lg bg-error/10 px-3 py-2 text-xs text-error">
+          <div className="mx-5 rounded-lg bg-error/10 px-3 py-2 text-xs text-error">
             {error}
           </div>
         )}
 
         {/* Plugin list */}
-        <div className="max-h-72 overflow-y-auto py-2">
+        <div className="max-h-96 overflow-y-auto py-1">
           {loading && (
             <div className="px-5 py-8 text-center text-xs text-text-muted">
               Loading plugins...
             </div>
           )}
 
-          {!loading && plugins.length === 0 && (
+          {!loading && filteredPlugins.length === 0 && (
             <div className="px-5 py-8 text-center text-xs text-text-muted">
-              No plugins installed
+              {searchQuery
+                ? "No plugins match your search"
+                : activeTab === "installed"
+                  ? "No plugins installed"
+                  : "No plugins found"}
             </div>
           )}
 
-          {plugins.map((plugin) => (
+          {!loading && filteredPlugins.map((plugin) => (
             <div
-              key={plugin.name}
-              className="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-bg-tertiary/30"
+              key={plugin.id}
+              className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-bg-tertiary/30"
             >
+              {/* Toggle (installed tab only) */}
+              {activeTab === "installed" && (
+                <button
+                  onClick={() => handleToggle(plugin.id)}
+                  disabled={toggling === plugin.id}
+                  className={`mt-0.5 flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${
+                    plugin.enabled ? "bg-success" : "bg-bg-tertiary"
+                  }`}
+                  aria-label={plugin.enabled ? "Disable plugin" : "Enable plugin"}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                      plugin.enabled ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              )}
+
+              {/* Plugin info */}
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-text">{plugin.name}</div>
-                {plugin.version && (
-                  <div className="text-xs text-text-muted">{plugin.version}</div>
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-text">
+                    {plugin.name}
+                  </span>
+                  {plugin.installCount > 0 && (
+                    <span className="flex-shrink-0 text-[10px] text-text-muted">
+                      {formatInstallCount(plugin.installCount)} installs
+                    </span>
+                  )}
+                </div>
+                {plugin.description && (
+                  <div className="mt-0.5 text-xs leading-relaxed text-text-secondary line-clamp-2">
+                    {plugin.description}
+                  </div>
+                )}
+                <div className="mt-1 text-[10px] text-text-muted">
+                  {plugin.author && <span>{plugin.author}</span>}
+                  {plugin.author && plugin.marketplace && <span> · </span>}
+                  <span>{plugin.marketplace}</span>
+                </div>
+              </div>
+
+              {/* Action button */}
+              <div className="flex flex-shrink-0 items-center gap-2 pt-0.5">
+                {activeTab === "installed" ? (
+                  <button
+                    onClick={() => handleRemove(plugin.id)}
+                    disabled={removing === plugin.id}
+                    className="rounded-lg px-2.5 py-1 text-xs text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                  >
+                    {removing === plugin.id ? "Removing..." : "Remove"}
+                  </button>
+                ) : plugin.installed ? (
+                  <span className="rounded-lg bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
+                    Installed
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleInstall(plugin.id)}
+                    disabled={installing === plugin.id}
+                    className="rounded-lg bg-accent px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                  >
+                    {installing === plugin.id ? "Installing..." : "Install"}
+                  </button>
                 )}
               </div>
-              <button
-                onClick={() => handleRemove(plugin.name)}
-                disabled={removing === plugin.name}
-                className="flex-shrink-0 rounded-lg px-2.5 py-1 text-xs text-error transition-colors hover:bg-error/10 disabled:opacity-50"
-              >
-                {removing === plugin.name ? "Removing..." : "Remove"}
-              </button>
             </div>
           ))}
-        </div>
-
-        {/* Install section */}
-        <div className="border-t border-white/5 px-5 py-4">
-          <div className="mb-2 text-[10px] font-medium uppercase tracking-widest text-text-muted">
-            Install Plugin
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={installName}
-              onChange={(e) => setInstallName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleInstall();
-                }
-              }}
-              placeholder="Plugin name..."
-              className="flex-1 rounded-lg border border-border/30 bg-bg px-3 py-2 text-sm text-text placeholder-text-muted/50 outline-none transition-colors focus:border-accent/50"
-            />
-            <button
-              onClick={handleInstall}
-              disabled={installing || !installName.trim()}
-              className="flex-shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-            >
-              {installing ? "Installing..." : "Install"}
-            </button>
-          </div>
         </div>
       </div>
     </div>

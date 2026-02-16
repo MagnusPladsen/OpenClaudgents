@@ -167,14 +167,23 @@ export async function updateClaudeMd(
 
 // --- Plugin Management Commands ---
 
-export interface PluginInfo {
+export interface DiscoverablePlugin {
+  id: string;
   name: string;
-  version: string;
+  description: string;
+  author: string;
+  marketplace: string;
+  installCount: number;
+  installed: boolean;
   enabled: boolean;
 }
 
-export async function listPlugins(): Promise<PluginInfo[]> {
-  return invoke("list_plugins");
+export async function discoverPlugins(): Promise<DiscoverablePlugin[]> {
+  return invoke("discover_plugins");
+}
+
+export async function togglePluginEnabled(pluginId: string): Promise<boolean> {
+  return invoke("toggle_plugin_enabled", { pluginId });
 }
 
 export async function installPlugin(name: string): Promise<string> {
