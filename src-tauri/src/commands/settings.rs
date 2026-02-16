@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// Read the CLAUDE.md file from a project directory
@@ -303,51 +304,227 @@ fn parse_frontmatter(content: &str, default_name: &str) -> (String, String) {
 
 // --- Plugin Management ---
 
-/// A plugin entry from `claude plugin list`
+/// A discoverable plugin from the local marketplace filesystem
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginInfo {
+pub struct DiscoverablePlugin {
+    pub id: String,
     pub name: String,
-    pub version: String,
+    pub description: String,
+    pub author: String,
+    pub marketplace: String,
+    pub install_count: u64,
+    pub installed: bool,
     pub enabled: bool,
 }
 
-/// List installed Claude Code plugins by running `claude plugin list`
-#[tauri::command]
-pub async fn list_plugins() -> Result<Vec<PluginInfo>, String> {
-    let cli = find_claude_cli()?;
-    let output = std::process::Command::new(&cli)
-        .args(["plugin", "list", "--json"])
-        .output()
-        .map_err(|e| format!("Failed to run claude plugin list: {}", e))?;
+// --- Helper deserialization structs ---
 
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if let Ok(plugins) = serde_json::from_str::<Vec<PluginInfo>>(&stdout) {
-            return Ok(plugins);
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MarketplaceEntry {
+    install_location: String,
+}
+
+#[derive(Deserialize)]
+struct InstallCountsCache {
+    counts: Vec<InstallCount>,
+}
+
+#[derive(Deserialize)]
+struct InstallCount {
+    plugin: String,
+    unique_installs: u64,
+}
+
+#[derive(Deserialize)]
+struct InstalledPluginsFile {
+    plugins: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+struct PluginJson {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    author: Option<PluginAuthor>,
+}
+
+#[derive(Deserialize)]
+struct PluginAuthor {
+    name: String,
+}
+
+// --- Helper functions ---
+
+fn read_known_marketplaces(plugins_dir: &Path) -> HashMap<String, PathBuf> {
+    let path = plugins_dir.join("known_marketplaces.json");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return HashMap::new();
+    };
+    let Ok(map) = serde_json::from_str::<HashMap<String, MarketplaceEntry>>(&content) else {
+        return HashMap::new();
+    };
+    map.into_iter()
+        .map(|(name, entry)| (name, PathBuf::from(entry.install_location)))
+        .collect()
+}
+
+fn scan_marketplace_dir(marketplace_path: &Path, marketplace_name: &str) -> Vec<(String, PluginJson)> {
+    let plugins_dir = marketplace_path.join("plugins");
+    let Ok(entries) = std::fs::read_dir(&plugins_dir) else {
+        return vec![];
+    };
+    let mut results = vec![];
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let plugin_json_path = path.join(".claude-plugin").join("plugin.json");
+        if !plugin_json_path.exists() {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(&plugin_json_path) else {
+            continue;
+        };
+        let Ok(pj) = serde_json::from_str::<PluginJson>(&content) else {
+            continue;
+        };
+        let plugin_id = format!("{}@{}", pj.name, marketplace_name);
+        results.push((plugin_id, pj));
+    }
+    results
+}
+
+fn read_install_counts(plugins_dir: &Path) -> HashMap<String, u64> {
+    let path = plugins_dir.join("install-counts-cache.json");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return HashMap::new();
+    };
+    let Ok(cache) = serde_json::from_str::<InstallCountsCache>(&content) else {
+        return HashMap::new();
+    };
+    cache.counts.into_iter().map(|c| (c.plugin, c.unique_installs)).collect()
+}
+
+fn read_installed_plugins(plugins_dir: &Path) -> HashSet<String> {
+    let path = plugins_dir.join("installed_plugins.json");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return HashSet::new();
+    };
+    let Ok(file) = serde_json::from_str::<InstalledPluginsFile>(&content) else {
+        return HashSet::new();
+    };
+    file.plugins.keys().cloned().collect()
+}
+
+fn read_enabled_plugins(home: &Path) -> HashSet<String> {
+    let path = home.join(".claude").join("settings.json");
+    let Ok(content) = std::fs::read_to_string(&path) else {
+        return HashSet::new();
+    };
+    let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return HashSet::new();
+    };
+    let Some(obj) = val.get("enabledPlugins").and_then(|v| v.as_object()) else {
+        return HashSet::new();
+    };
+    obj.iter()
+        .filter(|(_, v)| v.as_bool().unwrap_or(false))
+        .map(|(k, _)| k.clone())
+        .collect()
+}
+
+/// Discover all plugins from local marketplace filesystems
+#[tauri::command]
+pub async fn discover_plugins() -> Result<Vec<DiscoverablePlugin>, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let plugins_dir = home.join(".claude").join("plugins");
+
+    if !plugins_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    // Read all data sources
+    let marketplaces = read_known_marketplaces(&plugins_dir);
+    let install_counts = read_install_counts(&plugins_dir);
+    let installed = read_installed_plugins(&plugins_dir);
+    let enabled = read_enabled_plugins(&home);
+
+    let mut plugins: Vec<DiscoverablePlugin> = Vec::new();
+
+    for (marketplace_name, marketplace_path) in &marketplaces {
+        for (plugin_id, pj) in scan_marketplace_dir(marketplace_path, marketplace_name) {
+            let count = install_counts.get(&plugin_id).copied().unwrap_or(0);
+            let is_installed = installed.contains(&plugin_id);
+            let is_enabled = enabled.contains(&plugin_id);
+
+            plugins.push(DiscoverablePlugin {
+                id: plugin_id,
+                name: pj.name,
+                description: pj.description.unwrap_or_default(),
+                author: pj.author.map(|a| a.name).unwrap_or_default(),
+                marketplace: marketplace_name.clone(),
+                install_count: count,
+                installed: is_installed,
+                enabled: is_enabled,
+            });
         }
     }
 
-    // Fallback: try plain text output
-    let plain_output = std::process::Command::new(&cli)
-        .args(["plugin", "list"])
-        .output()
-        .map_err(|e| format!("Failed to run claude plugin list: {}", e))?;
+    // Sort by install count descending
+    plugins.sort_by(|a, b| b.install_count.cmp(&a.install_count));
 
-    let stdout = String::from_utf8_lossy(&plain_output.stdout);
-    let plugins: Vec<PluginInfo> = stdout
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .map(|line| {
-            let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            PluginInfo {
-                name: parts.first().unwrap_or(&"").to_string(),
-                version: parts.get(1).unwrap_or(&"").trim().to_string(),
-                enabled: true,
-            }
-        })
-        .collect();
     Ok(plugins)
+}
+
+/// Toggle a plugin's enabled state in ~/.claude/settings.json
+#[tauri::command]
+pub async fn toggle_plugin_enabled(plugin_id: String) -> Result<bool, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let settings_path = home.join(".claude").join("settings.json");
+
+    let mut config: serde_json::Value = if settings_path.exists() {
+        let content = std::fs::read_to_string(&settings_path)
+            .map_err(|e| format!("Failed to read settings.json: {}", e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse settings.json: {}", e))?
+    } else {
+        serde_json::json!({})
+    };
+
+    let obj = config.as_object_mut().ok_or("settings.json is not an object")?;
+
+    if !obj.contains_key("enabledPlugins") {
+        obj.insert("enabledPlugins".to_string(), serde_json::json!({}));
+    }
+
+    let enabled_plugins = obj
+        .get_mut("enabledPlugins")
+        .and_then(|v| v.as_object_mut())
+        .ok_or("enabledPlugins is not an object")?;
+
+    let currently_enabled = enabled_plugins
+        .get(&plugin_id)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let new_enabled = !currently_enabled;
+    enabled_plugins.insert(plugin_id, serde_json::Value::Bool(new_enabled));
+
+    if let Some(parent) = settings_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create .claude dir: {}", e))?;
+    }
+
+    let formatted = serde_json::to_string_pretty(&config)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    std::fs::write(&settings_path, formatted)
+        .map_err(|e| format!("Failed to write settings.json: {}", e))?;
+
+    Ok(new_enabled)
 }
 
 /// Install a Claude Code plugin
