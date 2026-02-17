@@ -152,6 +152,28 @@ export async function gitRestoreToCommit(
   return invoke("git_restore_to_commit", { path, commitHash });
 }
 
+// --- Filesystem Helpers ---
+
+export async function checkIsGitRepo(path: string): Promise<boolean> {
+  return invoke("check_is_git_repo", { path });
+}
+
+export async function listDirectoryCompletions(partialPath: string): Promise<string[]> {
+  return invoke("list_directory_completions", { partialPath });
+}
+
+// --- Native Folder Picker (tauri-plugin-dialog) ---
+
+export async function pickFolder(): Promise<string | null> {
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const result = await open({
+    directory: true,
+    multiple: false,
+    title: "Select Project Folder",
+  });
+  return typeof result === "string" ? result : null;
+}
+
 // --- Settings & CLAUDE.md Commands ---
 
 export async function getClaudeMd(projectPath: string): Promise<string | null> {

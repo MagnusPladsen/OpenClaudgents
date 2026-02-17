@@ -16,6 +16,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_pty::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:openclaudgents.db", db::get_migrations())
@@ -42,6 +43,8 @@ pub fn run() {
             commands::git::git_push,
             commands::git::git_log_commits,
             commands::git::git_restore_to_commit,
+            commands::git::check_is_git_repo,
+            commands::git::list_directory_completions,
             commands::settings::get_claude_md,
             commands::settings::update_claude_md,
             commands::settings::get_claude_todos,

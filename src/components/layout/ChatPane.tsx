@@ -194,8 +194,8 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
     <main className="flex min-w-0 flex-1 flex-col bg-bg" aria-label="Chat">
       {/* Session header bar */}
       {activeSession && (
-        <div className="relative flex items-center gap-3 border-b border-border/40 px-6 py-2.5">
-          <span className="truncate text-sm font-medium text-text">
+        <div className="relative flex items-center gap-3 border-b border-border/40 px-6 py-3.5">
+          <span className="truncate text-sm font-semibold text-text">
             {activeSession.name || `Session ${activeSession.id.slice(0, 8)}`}
           </span>
           <span className="truncate text-xs text-text-muted">

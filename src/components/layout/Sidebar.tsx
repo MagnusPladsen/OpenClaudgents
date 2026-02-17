@@ -136,8 +136,8 @@ export function Sidebar({ onNewSession }: SidebarProps) {
   return (
     <nav className="relative z-10 flex w-72 flex-col bg-bg-secondary shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]" aria-label="Sessions sidebar">
       {/* Header */}
-      <div className="relative flex items-center justify-between px-5 py-5">
-        <h1 className="text-base font-semibold tracking-tight text-text">
+      <div className="relative flex items-center justify-between px-5 py-6">
+        <h1 className="text-lg font-semibold tracking-tight text-text">
           OpenClaudgents
         </h1>
         {sessions.length > 0 && (
@@ -150,7 +150,7 @@ export function Sidebar({ onNewSession }: SidebarProps) {
       </div>
 
       {/* New Session button — top placement (Codex-style) */}
-      <div className="px-5 pb-3">
+      <div className="px-5 pb-4">
         <NewSessionButton onClick={() => onNewSession?.()} />
       </div>
 
@@ -166,7 +166,7 @@ export function Sidebar({ onNewSession }: SidebarProps) {
         <div className="pointer-events-none absolute left-5 right-5 top-0 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
         <button
           onClick={() => setShowSettings(true)}
-          className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-text-muted transition-all duration-200 hover:bg-bg-tertiary/60 hover:text-text"
+          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-3 text-sm font-medium text-text-muted transition-all duration-200 hover:bg-bg-tertiary/60 hover:text-text"
           aria-label="Open settings"
           title="Settings (⌘,)"
         >

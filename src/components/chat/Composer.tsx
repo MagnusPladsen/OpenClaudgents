@@ -233,7 +233,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
             <div className="relative" ref={modelPickerRef}>
               <button
                 onClick={() => setShowModelPicker((p) => !p)}
-                className="rounded-lg bg-bg-tertiary/40 px-2.5 py-1 text-[11px] font-medium text-text-muted transition-all hover:bg-bg-tertiary/60 hover:text-text"
+                className="rounded-lg bg-bg-tertiary/40 px-3 py-1.5 text-xs font-medium text-text-muted transition-all hover:bg-bg-tertiary/60 hover:text-text"
               >
                 {currentModel.label} <span className="text-text-muted/60">&#x25BE;</span>
               </button>
@@ -264,7 +264,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
             {/* Plan mode toggle */}
             <button
               onClick={() => setPlanMode(!planMode)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-all ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                 planMode
                   ? "bg-warning/15 text-warning"
                   : "bg-bg-tertiary/40 text-text-muted hover:bg-bg-tertiary/60 hover:text-text"
@@ -281,7 +281,7 @@ export function Composer({ onSend, disabled }: ComposerProps) {
               onClick={handleSend}
               disabled={!canSend}
               aria-label="Send message"
-              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
+              className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-all duration-200 ${
                 canSend
                   ? "bg-gradient-to-r from-accent to-accent-hover text-bg shadow-md shadow-accent/20 hover:scale-110 hover:shadow-lg hover:shadow-accent/30"
                   : "bg-bg-tertiary text-text-muted"

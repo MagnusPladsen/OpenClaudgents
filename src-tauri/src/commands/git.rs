@@ -183,6 +183,80 @@ pub async fn git_restore_to_commit(path: String, commit_hash: String) -> Result<
     Ok(result)
 }
 
+/// Check whether a given path is inside a git repository
+#[tauri::command]
+pub async fn check_is_git_repo(path: String) -> Result<bool, String> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--is-inside-work-tree"])
+        .current_dir(&path)
+        .output();
+
+    match output {
+        Ok(o) => Ok(o.status.success()),
+        Err(_) => Ok(false),
+    }
+}
+
+/// List subdirectories of a path for tab-completion (non-recursive, dirs only)
+#[tauri::command]
+pub async fn list_directory_completions(partial_path: String) -> Result<Vec<String>, String> {
+    let expanded = if partial_path.starts_with('~') {
+        if let Some(home) = dirs::home_dir() {
+            partial_path.replacen('~', &home.to_string_lossy(), 1)
+        } else {
+            partial_path.clone()
+        }
+    } else {
+        partial_path.clone()
+    };
+
+    // Determine the directory to list and the prefix to match
+    let (dir_to_list, prefix) = if expanded.ends_with('/') || expanded.ends_with(std::path::MAIN_SEPARATOR) {
+        (expanded.clone(), String::new())
+    } else {
+        let path = std::path::Path::new(&expanded);
+        let parent = path.parent().unwrap_or(std::path::Path::new("/"));
+        let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        (parent.to_string_lossy().to_string(), name)
+    };
+
+    let entries = std::fs::read_dir(&dir_to_list).map_err(|e| format!("read_dir failed: {}", e))?;
+
+    let mut results: Vec<String> = Vec::new();
+    for entry in entries.flatten() {
+        let meta = entry.metadata();
+        if let Ok(m) = meta {
+            if !m.is_dir() { continue; }
+        } else {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        // Skip hidden dirs
+        if name.starts_with('.') { continue; }
+        if !prefix.is_empty() && !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
+            continue;
+        }
+        // Build the full path for display, replacing home dir with ~
+        let full = entry.path().to_string_lossy().to_string();
+        let display = if let Some(home) = dirs::home_dir() {
+            let home_str = home.to_string_lossy().to_string();
+            if full.starts_with(&home_str) {
+                full.replacen(&home_str, "~", 1)
+            } else {
+                full
+            }
+        } else {
+            full
+        };
+        results.push(display);
+    }
+
+    results.sort();
+    // Limit to 10 results
+    results.truncate(10);
+    Ok(results)
+}
+
 /// Clean up old worktrees
 #[tauri::command]
 pub async fn cleanup_worktrees(
