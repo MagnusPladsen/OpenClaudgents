@@ -130,13 +130,7 @@ export interface CustomSkill {
 export interface AppSettings {
   theme: string;
   fontSize: number;
-  showTerminalDrawer: boolean;
-  worktreeBaseDir: string;
-  worktreeAutoCleanupDays: number;
-  maxWorktrees: number;
   notificationsEnabled: boolean;
-  notifySounds: boolean;
   defaultModel: string | null;
-  claudeCliPath: string;
-  apiKey: string | null;
+  autoWorktree: boolean;
 }
