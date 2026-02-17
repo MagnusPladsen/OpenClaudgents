@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1b2e"/>
+      <stop offset="50%" stop-color="#252640"/>
+      <stop offset="100%" stop-color="#1a1b2e"/>
+    </linearGradient>
+    <!-- Accent glow -->
+    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Eye glow -->
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="60%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </radialGradient>
+    <!-- Metallic head gradient -->
+    <linearGradient id="headMetal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a4b6a"/>
+      <stop offset="40%" stop-color="#3a3b58"/>
+      <stop offset="100%" stop-color="#2a2b44"/>
+    </linearGradient>
+    <!-- Antenna gradient -->
+    <linearGradient id="antenna" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#4a4b6a"/>
+    </linearGradient>
+    <!-- Antenna tip glow -->
+    <filter id="tipGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Subtle eye glow filter -->
+    <filter id="eyeFilter">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#bg)"/>
+
+  <!-- Subtle glow behind head -->
+  <rect x="0" y="0" width="1024" height="1024" rx="220" ry="220" fill="url(#glow)"/>
+
+  <!-- Antenna stalk -->
+  <rect x="492" y="155" width="40" height="100" rx="20" fill="url(#antenna)"/>
+
+  <!-- Antenna tip (glowing orb) -->
+  <circle cx="512" cy="148" r="28" fill="#a78bfa" filter="url(#tipGlow)"/>
+  <circle cx="512" cy="148" r="16" fill="#c4b5fd"/>
+  <circle cx="506" cy="142" r="6" fill="#ede9fe" opacity="0.8"/>
+
+  <!-- Robot head - main shape -->
+  <rect x="220" y="260" width="584" height="460" rx="80" ry="80" fill="url(#headMetal)" stroke="#5b5c80" stroke-width="4"/>
+
+  <!-- Forehead accent line -->
+  <rect x="320" y="300" width="384" height="4" rx="2" fill="#7c3aed" opacity="0.5"/>
+
+  <!-- Left ear -->
+  <rect x="172" y="380" width="60" height="120" rx="20" fill="#3a3b58" stroke="#5b5c80" stroke-width="3"/>
+  <rect x="182" y="400" width="12" height="80" rx="6" fill="#7c3aed" opacity="0.4"/>
+
+  <!-- Right ear -->
+  <rect x="792" y="380" width="60" height="120" rx="20" fill="#3a3b58" stroke="#5b5c80" stroke-width="3"/>
+  <rect x="830" y="400" width="12" height="80" rx="6" fill="#7c3aed" opacity="0.4"/>
+
+  <!-- Eye sockets (dark insets) -->
+  <rect x="300" y="380" width="160" height="120" rx="40" fill="#1a1b2e"/>
+  <rect x="564" y="380" width="160" height="120" rx="40" fill="#1a1b2e"/>
+
+  <!-- Eyes (glowing) -->
+  <ellipse cx="380" cy="440" rx="52" ry="40" fill="url(#eyeGlow)" filter="url(#eyeFilter)"/>
+  <ellipse cx="644" cy="440" rx="52" ry="40" fill="url(#eyeGlow)" filter="url(#eyeFilter)"/>
+
+  <!-- Eye highlights -->
+  <ellipse cx="365" cy="428" rx="16" ry="12" fill="#ede9fe" opacity="0.7"/>
+  <ellipse cx="629" cy="428" rx="16" ry="12" fill="#ede9fe" opacity="0.7"/>
+
+  <!-- Mouth area - visor style -->
+  <rect x="340" y="560" width="344" height="80" rx="20" fill="#1a1b2e"/>
+
+  <!-- Mouth grid bars (like a speaker grille) -->
+  <rect x="370" y="572" width="284" height="8" rx="4" fill="#7c3aed" opacity="0.6"/>
+  <rect x="370" y="590" width="284" height="8" rx="4" fill="#7c3aed" opacity="0.8"/>
+  <rect x="370" y="608" width="284" height="8" rx="4" fill="#7c3aed" opacity="0.6"/>
+  <rect x="370" y="626" width="284" height="8" rx="4" fill="#7c3aed" opacity="0.4"/>
+
+  <!-- Chin detail -->
+  <rect x="440" y="680" width="144" height="4" rx="2" fill="#5b5c80" opacity="0.5"/>
+
+  <!-- Neck -->
+  <rect x="430" y="720" width="164" height="50" rx="12" fill="#2a2b44" stroke="#5b5c80" stroke-width="3"/>
+
+  <!-- Shoulders hint -->
+  <rect x="280" y="760" width="464" height="80" rx="40" fill="#3a3b58" stroke="#5b5c80" stroke-width="3"/>
+
+  <!-- Shoulder accent lines -->
+  <rect x="320" y="790" width="100" height="3" rx="1.5" fill="#7c3aed" opacity="0.3"/>
+  <rect x="604" y="790" width="100" height="3" rx="1.5" fill="#7c3aed" opacity="0.3"/>
+
+  <!-- Small circuit details on forehead -->
+  <circle cx="380" cy="330" r="8" fill="none" stroke="#7c3aed" stroke-width="2" opacity="0.4"/>
+  <circle cx="380" cy="330" r="3" fill="#7c3aed" opacity="0.4"/>
+  <circle cx="644" cy="330" r="8" fill="none" stroke="#7c3aed" stroke-width="2" opacity="0.4"/>
+  <circle cx="644" cy="330" r="3" fill="#7c3aed" opacity="0.4"/>
+
+  <!-- Terminal cursor blink on chest -->
+  <rect x="490" y="785" width="44" height="20" rx="3" fill="#7c3aed" opacity="0.6"/>
+  <text x="496" y="800" font-family="monospace" font-size="16" fill="#ede9fe" opacity="0.9">&gt;_</text>
+</svg>
