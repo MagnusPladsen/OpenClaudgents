@@ -154,11 +154,11 @@ export function SessionList({ onSelectSession, onNewSessionForProject }: Session
         {/* Pinned section */}
         {pinned.length > 0 && (
           <div className="mb-4">
-            <div className="flex items-center gap-2 px-3 py-2.5">
-              <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-warning">
+            <div className="flex items-center gap-2 px-3 py-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" className="text-warning">
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
               </svg>
-              <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+              <span className="text-[11px] font-medium uppercase tracking-widest text-text-muted">
                 Pinned
               </span>
             </div>
@@ -187,9 +187,9 @@ export function SessionList({ onSelectSession, onNewSessionForProject }: Session
 
         {/* Threads section */}
         {unpinned.length > 0 && pinned.length > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className="flex items-center gap-2 px-3 py-3">
             <span className="h-px w-3 bg-border/40" />
-            <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+            <span className="text-[11px] font-medium uppercase tracking-widest text-text-muted">
               Threads
             </span>
           </div>
@@ -198,21 +198,21 @@ export function SessionList({ onSelectSession, onNewSessionForProject }: Session
         {Object.entries(grouped).map(([projectPath, projectSessions]) => (
           <div key={projectPath} className="mb-4">
             {/* Project group header */}
-            <div className="group/header flex items-center justify-between px-3 py-2.5">
+            <div className="group/header flex items-center justify-between px-3 py-3">
               <div className="flex items-center gap-2">
                 <span className="h-px w-3 bg-accent/40" />
-                <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+                <span className="text-[11px] font-medium uppercase tracking-widest text-text-muted">
                   {projectPath.split("/").pop() || projectPath}
                 </span>
               </div>
               {onNewSessionForProject && (
                 <button
                   onClick={() => onNewSessionForProject(projectPath)}
-                  className="flex h-5 w-5 items-center justify-center rounded text-text-muted transition-all hover:bg-accent/15 hover:text-accent"
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-all hover:bg-accent/15 hover:text-accent"
                   aria-label={`New session in ${projectPath.split("/").pop()}`}
                   title="New session in this project"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19" />
                     <line x1="5" y1="12" x2="19" y2="12" />
                   </svg>

@@ -48,7 +48,7 @@ export function SessionItem({
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className={`group relative mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-all duration-200 ${
+      className={`group relative mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-xl px-4 py-3.5 text-left transition-all duration-200 ${
         isActive
           ? "bg-accent/10 text-text shadow-sm shadow-accent/10"
           : "text-text-secondary hover:bg-bg-tertiary/50 hover:text-text"
@@ -56,7 +56,7 @@ export function SessionItem({
     >
       {/* Active accent bar */}
       {isActive && (
-        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-accent shadow-sm shadow-accent/30" />
+        <span className="absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full bg-accent shadow-sm shadow-accent/30" />
       )}
 
       {/* Worktree badge */}
@@ -93,7 +93,7 @@ export function SessionItem({
         />
       ) : (
         <span
-          className="min-w-0 flex-1 truncate font-medium"
+          className="min-w-0 flex-1 truncate text-sm font-medium"
           onDoubleClick={(e) => {
             e.stopPropagation();
             startRename();
@@ -113,7 +113,7 @@ export function SessionItem({
             e.stopPropagation();
             onTogglePin();
           }}
-          className={`flex-shrink-0 transition-all duration-200 ${
+          className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded transition-all duration-200 ${
             isPinned
               ? "text-warning"
               : "opacity-0 group-hover:opacity-60 hover:!opacity-100"
@@ -121,7 +121,7 @@ export function SessionItem({
           aria-label={isPinned ? "Unpin session" : "Pin session"}
           title={isPinned ? "Unpin" : "Pin"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
             fill={isPinned ? "currentColor" : "none"}
             stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />

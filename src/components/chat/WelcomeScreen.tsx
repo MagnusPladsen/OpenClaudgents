@@ -1,58 +1,34 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
+import { pickFolder, listDirectoryCompletions, checkIsGitRepo } from "../../lib/tauri";
 
 interface WelcomeScreenProps {
   onCreateSession?: (projectPath: string) => void;
   error?: string | null;
 }
 
-const SUGGESTIONS = [
-  {
-    label: "Home",
-    description: "Your home directory",
-    path: "~",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    ),
-  },
-  {
-    label: "Current Dir",
-    description: "Where you launched from",
-    path: ".",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-      </svg>
-    ),
-  },
-  {
-    label: "Desktop",
-    description: "Quick access to desktop",
-    path: "~/Desktop",
-    icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="20" height="14" x="2" y="3" rx="2" />
-        <line x1="8" x2="16" y1="21" y2="21" />
-        <line x1="12" x2="12" y1="17" y2="21" />
-      </svg>
-    ),
-  },
-];
+interface FolderEntry {
+  path: string;
+  name: string;
+  isGit: boolean;
+  lastUsed: string | null;
+}
 
 export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
   const [projectPath, setProjectPath] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [completions, setCompletions] = useState<string[]>([]);
+  const [gitCache, setGitCache] = useState<Record<string, boolean>>({});
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const sessions = useSessionStore((s) => s.sessions);
 
-  // Derive recent project paths from sessions
-  const recentProjects = useMemo(() => {
+  // Derive recent project paths from sessions, scored by recency
+  const recentProjects = useMemo<FolderEntry[]>(() => {
     const seen = new Map<string, string>(); // path -> most recent updatedAt
     for (const s of sessions) {
       if (!seen.has(s.projectPath) || s.updatedAt > seen.get(s.projectPath)!) {
@@ -61,16 +37,49 @@ export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
     }
     return [...seen.entries()]
       .sort((a, b) => b[1].localeCompare(a[1]))
-      .map(([path]) => path)
-      .slice(0, 8);
-  }, [sessions]);
+      .slice(0, 8)
+      .map(([path, lastUsed]) => ({
+        path,
+        name: path.split("/").pop() || path,
+        isGit: gitCache[path] ?? false,
+        lastUsed,
+      }));
+  }, [sessions, gitCache]);
+
+  // Check git status for all recent projects on mount
+  useEffect(() => {
+    const paths = recentProjects.map((p) => p.path);
+    for (const path of paths) {
+      if (gitCache[path] !== undefined) continue;
+      checkIsGitRepo(path)
+        .then((isGit) => {
+          setGitCache((prev) => ({ ...prev, [path]: isGit }));
+        })
+        .catch(() => {
+          setGitCache((prev) => ({ ...prev, [path]: false }));
+        });
+    }
+  }, [recentProjects, gitCache]);
 
   // Filter recent projects based on input
-  const filteredProjects = useMemo(() => {
+  const filteredProjects = useMemo<FolderEntry[]>(() => {
     if (!projectPath.trim()) return recentProjects;
     const lower = projectPath.toLowerCase();
-    return recentProjects.filter((p) => p.toLowerCase().includes(lower));
+    return recentProjects.filter((p) => p.path.toLowerCase().includes(lower));
   }, [projectPath, recentProjects]);
+
+  // Combine: show recent projects when no input, or tab completions when typing paths
+  const dropdownItems = useMemo<FolderEntry[]>(() => {
+    if (completions.length > 0) {
+      return completions.map((path) => ({
+        path,
+        name: path.split("/").pop() || path,
+        isGit: gitCache[path] ?? false,
+        lastUsed: null,
+      }));
+    }
+    return filteredProjects;
+  }, [completions, filteredProjects, gitCache]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -79,28 +88,128 @@ export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
       const target = e.target as HTMLElement;
       if (!target.closest("[data-welcome-combobox]")) {
         setShowDropdown(false);
+        setCompletions([]);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [showDropdown]);
 
-  const handleSubmit = async () => {
+  // Scroll active item into view
+  useEffect(() => {
+    if (highlightIndex < 0 || !dropdownRef.current) return;
+    const items = dropdownRef.current.querySelectorAll("[data-dropdown-item]");
+    items[highlightIndex]?.scrollIntoView({ block: "nearest" });
+  }, [highlightIndex]);
+
+  const handleSubmit = useCallback(async () => {
     if (!projectPath.trim() || isSubmitting) return;
     setIsSubmitting(true);
     setShowDropdown(false);
+    setCompletions([]);
     try {
       await onCreateSession?.(projectPath);
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [projectPath, isSubmitting, onCreateSession]);
 
-  const handleSelectProject = (path: string) => {
+  const handleSelectProject = useCallback((path: string) => {
     setProjectPath(path);
     setShowDropdown(false);
+    setCompletions([]);
+    setHighlightIndex(-1);
     inputRef.current?.focus();
-  };
+  }, []);
+
+  const handleTabComplete = useCallback(async () => {
+    if (!projectPath.trim()) return;
+    try {
+      const results = await listDirectoryCompletions(projectPath);
+      if (results.length === 1) {
+        // Single match — auto-complete it
+        setProjectPath(results[0] + "/");
+        setCompletions([]);
+        setShowDropdown(false);
+      } else if (results.length > 1) {
+        // Multiple matches — show dropdown
+        setCompletions(results);
+        setShowDropdown(true);
+        setHighlightIndex(0);
+        // Check git status for completions
+        for (const path of results) {
+          if (gitCache[path] !== undefined) continue;
+          checkIsGitRepo(path)
+            .then((isGit) => setGitCache((prev) => ({ ...prev, [path]: isGit })))
+            .catch(() => {});
+        }
+      }
+    } catch {
+      // Silently ignore errors (e.g., invalid path)
+    }
+  }, [projectPath, gitCache]);
+
+  const handleBrowseFolder = useCallback(async () => {
+    try {
+      const folder = await pickFolder();
+      if (folder) {
+        setProjectPath(folder);
+        inputRef.current?.focus();
+      }
+    } catch (err) {
+      console.error("Failed to open folder picker:", err);
+    }
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        handleTabComplete();
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!showDropdown && dropdownItems.length > 0) {
+          setShowDropdown(true);
+          setHighlightIndex(0);
+        } else if (showDropdown) {
+          setHighlightIndex((prev) =>
+            prev < dropdownItems.length - 1 ? prev + 1 : 0,
+          );
+        }
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (showDropdown) {
+          setHighlightIndex((prev) =>
+            prev > 0 ? prev - 1 : dropdownItems.length - 1,
+          );
+        }
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (showDropdown && highlightIndex >= 0 && dropdownItems[highlightIndex]) {
+          handleSelectProject(dropdownItems[highlightIndex].path);
+        } else if (projectPath.trim()) {
+          handleSubmit();
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setShowDropdown(false);
+        setCompletions([]);
+        setHighlightIndex(-1);
+      }
+    },
+    [showDropdown, highlightIndex, dropdownItems, projectPath, handleTabComplete, handleSelectProject, handleSubmit],
+  );
 
   return (
     <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-bg">
@@ -156,77 +265,145 @@ export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
                 value={projectPath}
                 onChange={(e) => {
                   setProjectPath(e.target.value);
-                  setShowDropdown(true);
+                  setCompletions([]);
+                  setHighlightIndex(-1);
+                  if (recentProjects.length > 0) setShowDropdown(true);
                 }}
                 onFocus={() => {
                   setIsFocused(true);
                   if (recentProjects.length > 0) setShowDropdown(true);
                 }}
                 onBlur={() => setIsFocused(false)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && projectPath.trim()) {
-                    handleSubmit();
-                  }
-                  if (e.key === "Escape") {
-                    setShowDropdown(false);
-                  }
-                }}
+                onKeyDown={handleKeyDown}
                 placeholder="~/git/my-project"
-                className="w-full rounded-[15px] bg-transparent py-3.5 pl-11 pr-4 text-base text-text placeholder:text-text-muted focus:outline-none"
+                className="w-full rounded-[15px] bg-transparent py-4 pl-11 pr-4 text-base text-text placeholder:text-text-muted focus:outline-none"
+                role="combobox"
+                aria-expanded={showDropdown}
+                aria-activedescendant={highlightIndex >= 0 ? `folder-item-${highlightIndex}` : undefined}
+                autoComplete="off"
               />
             </div>
           </div>
 
-          {/* Dropdown for recent projects */}
-          {showDropdown && filteredProjects.length > 0 && (
-            <div className="animate-scale-in absolute z-20 mt-1 w-[calc(100%-4rem)] max-h-56 overflow-y-auto rounded-2xl border border-border/30 bg-bg-secondary shadow-xl shadow-black/20">
+          {/* Tab hint */}
+          {isFocused && projectPath.trim() && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-muted">
+              <kbd className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono text-[10px] font-medium text-text-secondary">Tab</kbd>
+              autocomplete
+              <span className="mx-1 text-border">|</span>
+              <kbd className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono text-[10px] font-medium text-text-secondary">↑↓</kbd>
+              navigate
+              <span className="mx-1 text-border">|</span>
+              <kbd className="rounded bg-bg-tertiary px-1.5 py-0.5 font-mono text-[10px] font-medium text-text-secondary">Enter</kbd>
+              select
+            </div>
+          )}
+
+          {/* Dropdown for recent projects / completions */}
+          {showDropdown && dropdownItems.length > 0 && (
+            <div
+              ref={dropdownRef}
+              className="animate-scale-in absolute z-20 mt-1 w-[calc(100%-4rem)] max-h-64 overflow-y-auto rounded-2xl border border-border/30 bg-bg-secondary shadow-xl shadow-black/20"
+              role="listbox"
+            >
               <div className="px-3 py-2">
                 <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
-                  Recent projects
+                  {completions.length > 0 ? "Matching folders" : "Recent projects"}
                 </span>
               </div>
-              {filteredProjects.map((path) => (
+              {dropdownItems.map((item, i) => (
                 <button
-                  key={path}
+                  key={item.path}
+                  id={`folder-item-${i}`}
+                  data-dropdown-item
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    handleSelectProject(path);
+                    handleSelectProject(item.path);
                   }}
-                  className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-bg-tertiary/50"
+                  onMouseEnter={() => setHighlightIndex(i)}
+                  className={`flex w-full items-center gap-3 px-3 py-3 text-left transition-colors ${
+                    i === highlightIndex
+                      ? "bg-accent/10 text-text"
+                      : "hover:bg-bg-tertiary/50"
+                  }`}
+                  role="option"
+                  aria-selected={i === highlightIndex}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                     fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     className="flex-shrink-0 text-text-muted">
                     <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
                   </svg>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-text">
-                      {path.split("/").pop()}
+                      {item.name}
                     </div>
                     <div className="truncate text-xs text-text-muted">
-                      {path}
+                      {item.path}
                     </div>
                   </div>
+                  {/* Git badge */}
+                  {item.isGit && (
+                    <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18" cy="18" r="3" />
+                        <circle cx="6" cy="6" r="3" />
+                        <path d="M6 21V9a9 9 0 0 0 9 9" />
+                      </svg>
+                      git
+                    </span>
+                  )}
+                  {/* Recency indicator */}
+                  {item.lastUsed && (
+                    <span className="flex-shrink-0 text-[10px] text-text-muted">
+                      {formatTimeAgo(item.lastUsed)}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Suggestion cards */}
+        {/* Browse folder button + suggestion cards */}
         <div className="animate-stagger-in mb-6 flex items-stretch gap-3" style={{ animationDelay: "200ms" }}>
-          {SUGGESTIONS.map((s, i) => (
-            <button
-              key={s.path}
-              onClick={() => setProjectPath(s.path)}
-              className="animate-stagger-in flex flex-1 flex-col items-center gap-2 rounded-2xl border border-border/30 bg-bg-secondary/50 p-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/5"
-              style={{ animationDelay: `${200 + i * 80}ms` }}
-            >
-              <span className="text-text-muted">{s.icon}</span>
-              <span className="text-sm font-medium text-text">{s.label}</span>
-              <span className="text-[11px] text-text-muted">{s.description}</span>
-            </button>
-          ))}
+          {/* Big browse button */}
+          <button
+            onClick={handleBrowseFolder}
+            className="flex flex-1 flex-col items-center justify-center gap-2.5 rounded-2xl border-2 border-dashed border-accent/40 bg-accent/5 p-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:bg-accent/10 hover:shadow-lg hover:shadow-accent/10"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+              <line x1="12" x2="12" y1="10" y2="16" />
+              <line x1="9" x2="15" y1="13" y2="13" />
+            </svg>
+            <span className="text-sm font-semibold text-accent">Browse Folder</span>
+            <span className="text-[11px] text-text-muted">Open file picker</span>
+          </button>
+
+          {/* Home shortcut */}
+          <button
+            onClick={() => setProjectPath("~")}
+            className="flex flex-1 flex-col items-center gap-2 rounded-2xl border border-border/30 bg-bg-secondary/50 p-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
+              <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span className="text-sm font-medium text-text">Home</span>
+          </button>
+
+          {/* Current Dir shortcut */}
+          <button
+            onClick={() => setProjectPath(".")}
+            className="flex flex-1 flex-col items-center gap-2 rounded-2xl border border-border/30 bg-bg-secondary/50 p-5 text-center transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:bg-accent/5 hover:shadow-lg hover:shadow-accent/5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted">
+              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+            </svg>
+            <span className="text-sm font-medium text-text">Current Dir</span>
+          </button>
         </div>
 
         {/* Error banner */}
@@ -248,7 +425,7 @@ export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
           <button
             onClick={handleSubmit}
             disabled={!projectPath.trim() || isSubmitting}
-            className="w-full rounded-xl bg-gradient-to-r from-accent to-accent-hover px-4 py-3.5 text-base font-semibold text-bg shadow-lg shadow-accent/20 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-accent/30 disabled:opacity-30 disabled:shadow-none disabled:hover:scale-100"
+            className="w-full rounded-xl bg-gradient-to-r from-accent to-accent-hover px-4 py-4 text-base font-semibold text-bg shadow-lg shadow-accent/20 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:shadow-accent/30 disabled:opacity-30 disabled:shadow-none disabled:hover:scale-100"
           >
             {isSubmitting ? "Creating..." : "Start New Session"}
           </button>
@@ -275,4 +452,21 @@ export function WelcomeScreen({ onCreateSession, error }: WelcomeScreenProps) {
       </div>
     </div>
   );
+}
+
+function formatTimeAgo(timestamp: string): string {
+  try {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  } catch {
+    return "";
+  }
 }
