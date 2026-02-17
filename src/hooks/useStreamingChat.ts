@@ -18,6 +18,11 @@ interface ToolStartEvent {
   toolId: string;
 }
 
+interface ToolInputDeltaEvent {
+  sessionId: string;
+  partialJson: string;
+}
+
 interface SessionStatusEvent {
   sessionId: string;
   status: string;
@@ -42,6 +47,11 @@ interface CompactionEvent {
   sessionId: string;
 }
 
+interface SessionIdResolvedEvent {
+  sessionId: string;
+  claudeSessionId: string;
+}
+
 /**
  * Hook that subscribes to all Claude streaming events and updates stores.
  * Should be mounted once at the app level.
@@ -52,6 +62,9 @@ export function useStreamingChat() {
   const resetStreamingText = useChatStore((s) => s.resetStreamingText);
   const addMessage = useChatStore((s) => s.addMessage);
   const incrementCompaction = useChatStore((s) => s.incrementCompaction);
+  const startToolCall = useChatStore((s) => s.startToolCall);
+  const appendToolInput = useChatStore((s) => s.appendToolInput);
+  const flushPendingToolCalls = useChatStore((s) => s.flushPendingToolCalls);
   const updateSession = useSessionStore((s) => s.updateSession);
   const setActivityState = useSessionStore((s) => s.setActivityState);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -73,15 +86,38 @@ export function useStreamingChat() {
       }),
     );
 
-    // Message complete — finalize the streamed message
+    // Tool use started — track the tool call
+    unlisteners.push(
+      listen<ToolStartEvent>("claude:tool_start", (event) => {
+        const { sessionId, toolName, toolId } = event.payload;
+        setActivityState(sessionId, "tool_running");
+        if (sessionId === activeSessionId) {
+          startToolCall(toolId, toolName);
+          setStreaming(true);
+        }
+      }),
+    );
+
+    // Tool input JSON deltas — accumulate partial JSON for the current tool
+    unlisteners.push(
+      listen<ToolInputDeltaEvent>("claude:tool_input_delta", (event) => {
+        const { sessionId, partialJson } = event.payload;
+        if (sessionId === activeSessionId) {
+          appendToolInput(partialJson);
+        }
+      }),
+    );
+
+    // Message complete — finalize the streamed message with tool calls
     unlisteners.push(
       listen<MessageCompleteEvent>("claude:message_complete", (event) => {
         const { sessionId } = event.payload;
         setActivityState(sessionId, "idle");
         if (sessionId === activeSessionId) {
-          // Move streaming text into a proper message
           const streamingText = useChatStore.getState().streamingText;
-          if (streamingText) {
+          const toolCalls = flushPendingToolCalls();
+
+          if (streamingText || toolCalls.length > 0) {
             addMessage({
               uuid: crypto.randomUUID(),
               parentUuid: null,
@@ -89,19 +125,12 @@ export function useStreamingChat() {
               content: streamingText,
               timestamp: new Date().toISOString(),
               isSidechain: false,
+              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
             });
           }
           resetStreamingText();
           setStreaming(false);
         }
-      }),
-    );
-
-    // Tool starts
-    unlisteners.push(
-      listen<ToolStartEvent>("claude:tool_start", (event) => {
-        const { sessionId } = event.payload;
-        setActivityState(sessionId, "tool_running");
       }),
     );
 
@@ -169,6 +198,14 @@ export function useStreamingChat() {
       }),
     );
 
+    // Session ID resolved — real Claude session ID discovered from stream
+    unlisteners.push(
+      listen<SessionIdResolvedEvent>("claude:session_id_resolved", (event) => {
+        const { sessionId, claudeSessionId } = event.payload;
+        updateSession(sessionId, { claudeSessionId });
+      }),
+    );
+
     // Compaction events — context was compressed
     unlisteners.push(
       listen<CompactionEvent>("claude:compaction", (event) => {
@@ -189,6 +226,9 @@ export function useStreamingChat() {
     resetStreamingText,
     addMessage,
     incrementCompaction,
+    startToolCall,
+    appendToolInput,
+    flushPendingToolCalls,
     updateSession,
     setActivityState,
   ]);

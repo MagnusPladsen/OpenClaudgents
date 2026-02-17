@@ -208,7 +208,7 @@ export function SessionList({ onSelectSession, onNewSessionForProject }: Session
               {onNewSessionForProject && (
                 <button
                   onClick={() => onNewSessionForProject(projectPath)}
-                  className="flex h-5 w-5 items-center justify-center rounded text-text-muted opacity-0 transition-all hover:bg-accent/15 hover:text-accent group-hover/header:opacity-100"
+                  className="flex h-5 w-5 items-center justify-center rounded text-text-muted transition-all hover:bg-accent/15 hover:text-accent"
                   aria-label={`New session in ${projectPath.split("/").pop()}`}
                   title="New session in this project"
                 >

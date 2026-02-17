@@ -213,6 +213,14 @@ impl ProcessManager {
                         let mut map = session_map.lock().await;
                         if !map.contains_key(&sid) {
                             map.insert(sid.clone(), sid_val.to_string());
+                            // Notify frontend of the real Claude session ID
+                            let _ = app.emit(
+                                crate::events::CLAUDE_SESSION_ID_RESOLVED,
+                                serde_json::json!({
+                                    "sessionId": sid,
+                                    "claudeSessionId": sid_val,
+                                }),
+                            );
                         }
                     }
                 }

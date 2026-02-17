@@ -26,12 +26,13 @@ export function Sidebar({ onNewSession }: SidebarProps) {
         // Only load recent sessions (last 20)
         const recent = discovered.slice(0, 20);
         for (const d of recent) {
-          // Check if already loaded
-          const exists = useSessionStore
-            .getState()
-            .sessions.some(
-              (s) => s.claudeSessionId === d.claudeSessionId,
-            );
+          // Check if already loaded — match by claudeSessionId or by ID
+          const currentSessions = useSessionStore.getState().sessions;
+          const exists = currentSessions.some(
+            (s) =>
+              s.claudeSessionId === d.claudeSessionId ||
+              s.id === d.claudeSessionId,
+          );
           if (exists) continue;
 
           addSession({

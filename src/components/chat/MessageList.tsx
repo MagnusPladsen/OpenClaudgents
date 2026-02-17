@@ -12,11 +12,12 @@ export function MessageList({ messages }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const streamingText = useChatStore((s) => s.streamingText);
+  const pendingToolCalls = useChatStore((s) => s.pendingToolCalls);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive or tool calls change
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, streamingText]);
+  }, [messages.length, streamingText, pendingToolCalls.length]);
 
   if (messages.length === 0 && !isStreaming) {
     return (
@@ -28,6 +29,8 @@ export function MessageList({ messages }: MessageListProps) {
       </div>
     );
   }
+
+  const hasStreamingContent = streamingText || pendingToolCalls.length > 0;
 
   return (
     <div className="space-y-6 px-8 py-8">
@@ -41,7 +44,7 @@ export function MessageList({ messages }: MessageListProps) {
         </div>
       ))}
 
-      {isStreaming && streamingText && (
+      {isStreaming && hasStreamingContent && (
         <MessageBubble
           message={{
             uuid: "__streaming__",
@@ -51,11 +54,12 @@ export function MessageList({ messages }: MessageListProps) {
             timestamp: new Date().toISOString(),
             isSidechain: false,
             isStreaming: true,
+            toolCalls: pendingToolCalls.length > 0 ? pendingToolCalls : undefined,
           }}
         />
       )}
 
-      {isStreaming && !streamingText && <StreamingIndicator />}
+      {isStreaming && !hasStreamingContent && <StreamingIndicator />}
 
       <div ref={bottomRef} />
     </div>

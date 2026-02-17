@@ -7,5 +7,6 @@ pub const CLAUDE_SESSION_STATUS: &str = "claude:session_status";
 pub const CLAUDE_USAGE_UPDATE: &str = "claude:usage_update";
 pub const CLAUDE_STDERR: &str = "claude:stderr";
 pub const CLAUDE_COMPACTION: &str = "claude:compaction";
+pub const CLAUDE_SESSION_ID_RESOLVED: &str = "claude:session_id_resolved";
 pub const GIT_STATUS_CHANGED: &str = "git:status_changed";
 pub const SESSION_DISCOVERED: &str = "session:discovered";
