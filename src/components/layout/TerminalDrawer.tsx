@@ -1,12 +1,110 @@
-import { useChatStore } from "../../stores/chatStore";
+import { useEffect, useRef, useCallback } from "react";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { spawn } from "tauri-pty";
+import { useSessionStore } from "../../stores/sessionStore";
+import { getXtermTheme, observeThemeChanges } from "../../lib/terminalTheme";
+import "@xterm/xterm/css/xterm.css";
 
 interface TerminalDrawerProps {
   onClose: () => void;
 }
 
 export function TerminalDrawer({ onClose }: TerminalDrawerProps) {
-  // For now, show raw stream events as a simple log
-  // xterm.js integration will come later
+  const termRef = useRef<HTMLDivElement>(null);
+  const terminalRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+
+  const activeSession = useSessionStore((s) => {
+    return s.sessions.find((sess) => sess.id === s.activeSessionId);
+  });
+  const cwd = activeSession?.worktreePath || activeSession?.projectPath || undefined;
+
+  const handleClose = useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  useEffect(() => {
+    const container = termRef.current;
+    if (!container) return;
+
+    // Create terminal
+    const terminal = new Terminal({
+      theme: getXtermTheme(),
+      fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, monospace",
+      fontSize: 13,
+      lineHeight: 1.4,
+      cursorBlink: true,
+      cursorStyle: "bar",
+      scrollback: 5000,
+    });
+    terminalRef.current = terminal;
+
+    // Addons
+    const fitAddon = new FitAddon();
+    fitAddonRef.current = fitAddon;
+    terminal.loadAddon(fitAddon);
+    terminal.loadAddon(new WebLinksAddon());
+
+    // Mount
+    terminal.open(container);
+
+    // Initial fit (defer to next frame so container has dimensions)
+    requestAnimationFrame(() => {
+      fitAddon.fit();
+    });
+
+    // Spawn PTY with default shell
+    const shell = "/bin/zsh";
+    const pty = spawn(shell, [], {
+      cols: terminal.cols,
+      rows: terminal.rows,
+      cwd: cwd,
+    });
+
+    // Bidirectional wiring
+    // pty.onData sends Uint8Array — xterm.js Terminal.write() accepts Uint8Array directly
+    const ptyDataDisposable = pty.onData((data: Uint8Array) => {
+      terminal.write(data);
+    });
+    const termDataDisposable = terminal.onData((data: string) => {
+      pty.write(data);
+    });
+
+    // Resize handling
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        fitAddon.fit();
+        pty.resize(terminal.cols, terminal.rows);
+      });
+    });
+    resizeObserver.observe(container);
+
+    // Theme changes
+    const disconnectThemeObserver = observeThemeChanges((theme) => {
+      terminal.options.theme = theme;
+    });
+
+    // PTY exit
+    const exitDisposable = pty.onExit(() => {
+      terminal.writeln("\r\n\x1b[90m[Process exited]\x1b[0m");
+    });
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect();
+      disconnectThemeObserver();
+      ptyDataDisposable.dispose();
+      termDataDisposable.dispose();
+      exitDisposable.dispose();
+      pty.kill();
+      terminal.dispose();
+      terminalRef.current = null;
+      fitAddonRef.current = null;
+    };
+  }, [cwd]);
+
   return (
     <div className="flex h-64 flex-col bg-code-bg shadow-[0_-4px_24px_-4px_rgba(0,0,0,0.3)]">
       {/* Header with grab handle */}
@@ -17,9 +115,14 @@ export function TerminalDrawer({ onClose }: TerminalDrawerProps) {
           <span className="font-mono text-xs font-medium text-text-secondary">
             Terminal
           </span>
+          {cwd && (
+            <span className="font-mono text-[10px] text-text-muted">
+              {cwd.split("/").slice(-2).join("/")}
+            </span>
+          )}
         </div>
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="flex h-6 w-6 items-center justify-center rounded-md text-text-muted transition-all hover:bg-bg-tertiary hover:text-text"
           aria-label="Close terminal"
         >
@@ -30,51 +133,8 @@ export function TerminalDrawer({ onClose }: TerminalDrawerProps) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 font-mono text-xs leading-relaxed text-text-secondary">
-        <RawStreamLog />
-      </div>
-    </div>
-  );
-}
-
-function RawStreamLog() {
-  const messages = useChatStore((s) => s.messages);
-  const streamingText = useChatStore((s) => s.streamingText);
-
-  if (messages.length === 0 && !streamingText) {
-    return (
-      <span className="text-text-muted">
-        Raw Claude CLI output will appear here...
-      </span>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
-      {messages.map((msg) => (
-        <div key={msg.uuid} className="text-text-muted">
-          <span className={`mr-1.5 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-            msg.role === "user"
-              ? "bg-accent/15 text-accent"
-              : msg.role === "assistant"
-                ? "bg-info/15 text-info"
-                : "bg-error/15 text-error"
-          }`}>
-            {msg.role}
-          </span>
-          {typeof msg.content === "string"
-            ? msg.content.slice(0, 200)
-            : JSON.stringify(msg.content).slice(0, 200)}
-        </div>
-      ))}
-      {streamingText && (
-        <div className="text-success/90">
-          <span className="mr-1.5 inline-block rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
-            streaming
-          </span>
-          {streamingText.slice(-500)}
-        </div>
-      )}
+      {/* Terminal container */}
+      <div ref={termRef} className="min-h-0 flex-1 px-1" />
     </div>
   );
 }
