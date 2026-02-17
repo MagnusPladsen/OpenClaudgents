@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
-import { discoverSessions, getSessionMessages } from "../../lib/tauri";
+import { discoverSessions, getSessionMessages, createSession } from "../../lib/tauri";
 import { SessionList } from "../sidebar/SessionList";
 import { NewSessionButton } from "../sidebar/NewSessionButton";
 import { SettingsDialog } from "../settings/SettingsDialog";
@@ -89,6 +89,18 @@ export function Sidebar({ onNewSession }: SidebarProps) {
     }
   };
 
+  // Create a new session scoped to a specific project path
+  const handleNewSessionForProject = useCallback(async (projectPath: string) => {
+    try {
+      const session = await createSession(projectPath);
+      addSession(session);
+      setActiveSession(session.id);
+      setMessages([]);
+    } catch (err) {
+      console.error("Failed to create session for project:", err);
+    }
+  }, [addSession, setActiveSession, setMessages]);
+
   return (
     <nav className="relative z-10 flex w-72 flex-col bg-bg-secondary shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]" aria-label="Sessions sidebar">
       {/* Header */}
@@ -111,7 +123,10 @@ export function Sidebar({ onNewSession }: SidebarProps) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <SessionList onSelectSession={handleSelectSession} />
+        <SessionList
+          onSelectSession={handleSelectSession}
+          onNewSessionForProject={handleNewSessionForProject}
+        />
       </div>
 
       {/* Bottom section — settings only */}

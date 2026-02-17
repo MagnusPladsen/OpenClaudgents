@@ -20,6 +20,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 
 interface SessionListProps {
   onSelectSession: (sessionId: string) => void;
+  onNewSessionForProject?: (projectPath: string) => void;
 }
 
 interface ContextMenuState {
@@ -27,7 +28,7 @@ interface ContextMenuState {
   position: { x: number; y: number };
 }
 
-export function SessionList({ onSelectSession }: SessionListProps) {
+export function SessionList({ onSelectSession, onNewSessionForProject }: SessionListProps) {
   const sessions = useSessionStore((s) => s.sessions);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
   const updateSession = useSessionStore((s) => s.updateSession);
@@ -197,11 +198,26 @@ export function SessionList({ onSelectSession }: SessionListProps) {
         {Object.entries(grouped).map(([projectPath, projectSessions]) => (
           <div key={projectPath} className="mb-4">
             {/* Project group header */}
-            <div className="flex items-center gap-2 px-3 py-2.5">
-              <span className="h-px w-3 bg-accent/40" />
-              <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
-                {projectPath.split("/").pop() || projectPath}
-              </span>
+            <div className="group/header flex items-center justify-between px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-px w-3 bg-accent/40" />
+                <span className="text-[10px] font-medium uppercase tracking-widest text-text-muted">
+                  {projectPath.split("/").pop() || projectPath}
+                </span>
+              </div>
+              {onNewSessionForProject && (
+                <button
+                  onClick={() => onNewSessionForProject(projectPath)}
+                  className="flex h-5 w-5 items-center justify-center rounded text-text-muted opacity-0 transition-all hover:bg-accent/15 hover:text-accent group-hover/header:opacity-100"
+                  aria-label={`New session in ${projectPath.split("/").pop()}`}
+                  title="New session in this project"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {/* Sortable sessions in this project */}
