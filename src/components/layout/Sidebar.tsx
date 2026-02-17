@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
-import { discoverSessions, getSessionMessages, createSession } from "../../lib/tauri";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { useToastStore } from "../../stores/toastStore";
+import { discoverSessions, getSessionMessages, createSession, createWorktree } from "../../lib/tauri";
 import { SessionList } from "../sidebar/SessionList";
 import { NewSessionButton } from "../sidebar/NewSessionButton";
 import { SettingsDialog } from "../settings/SettingsDialog";
@@ -16,8 +18,11 @@ export function Sidebar({ onNewSession }: SidebarProps) {
   const [showSettings, setShowSettings] = useState(false);
   const addSession = useSessionStore((s) => s.addSession);
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
+  const updateSession = useSessionStore((s) => s.updateSession);
   const sessions = useSessionStore((s) => s.sessions);
   const setMessages = useChatStore((s) => s.setMessages);
+  const autoWorktree = useSettingsStore((s) => s.autoWorktree);
+  const addToast = useToastStore((s) => s.addToast);
 
   // Discover existing sessions on mount
   useEffect(() => {
@@ -90,9 +95,35 @@ export function Sidebar({ onNewSession }: SidebarProps) {
     }
   };
 
-  // Create a new session scoped to a specific project path
+  // Create a new session scoped to a specific project path.
+  // If the project already has an active session, auto-create a worktree for isolation.
   const handleNewSessionForProject = useCallback(async (projectPath: string) => {
     try {
+      const currentSessions = useSessionStore.getState().sessions;
+      const conflict = currentSessions.find(
+        (s) =>
+          s.projectPath === projectPath &&
+          (s.status === "active" || s.status === "paused" || s.status === "waiting_input"),
+      );
+
+      if (conflict && autoWorktree) {
+        // Auto-create an isolated worktree
+        const tempId = crypto.randomUUID();
+        const worktreeInfo = await createWorktree(tempId, projectPath);
+        const session = await createSession(worktreeInfo.path);
+        addSession(session);
+        setActiveSession(session.id);
+        updateSession(session.id, {
+          worktreePath: worktreeInfo.path,
+          projectPath,
+        });
+        setMessages([]);
+        const projectName = projectPath.split("/").pop() || projectPath;
+        addToast(`Created isolated worktree for ${projectName}`, "success");
+        return;
+      }
+
+      // No conflict or autoWorktree disabled — create normally
       const session = await createSession(projectPath);
       addSession(session);
       setActiveSession(session.id);
@@ -100,7 +131,7 @@ export function Sidebar({ onNewSession }: SidebarProps) {
     } catch (err) {
       console.error("Failed to create session for project:", err);
     }
-  }, [addSession, setActiveSession, setMessages]);
+  }, [addSession, setActiveSession, updateSession, setMessages, autoWorktree, addToast]);
 
   return (
     <nav className="relative z-10 flex w-72 flex-col bg-bg-secondary shadow-[4px_0_24px_-4px_rgba(0,0,0,0.3)]" aria-label="Sessions sidebar">
