@@ -85,22 +85,34 @@ impl StreamParser {
     }
 
     /// Handle system events (init with session_id, hooks, etc.)
-    fn handle_system_event(&self, session_id: &str, event: &Value, _app: &tauri::AppHandle) {
+    fn handle_system_event(&self, session_id: &str, event: &Value, app: &tauri::AppHandle) {
         let subtype = event.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
 
-        if subtype == "init" {
-            // The init event contains session_id, model, tools, etc.
-            let claude_session_id = event.get("session_id").and_then(|s| s.as_str());
-            let model = event.get("model").and_then(|m| m.as_str());
+        match subtype {
+            "init" => {
+                // The init event contains session_id, model, tools, etc.
+                let claude_session_id = event.get("session_id").and_then(|s| s.as_str());
+                let model = event.get("model").and_then(|m| m.as_str());
 
-            log::info!(
-                "[stream-parser:{}] init: claude_session_id={:?}, model={:?}",
-                session_id,
-                claude_session_id,
-                model
-            );
+                log::info!(
+                    "[stream-parser:{}] init: claude_session_id={:?}, model={:?}",
+                    session_id,
+                    claude_session_id,
+                    model
+                );
+            }
+            "compaction" => {
+                log::info!("[stream-parser:{}] context compaction occurred", session_id);
+                let _ = app.emit(
+                    events::CLAUDE_COMPACTION,
+                    serde_json::json!({
+                        "sessionId": session_id,
+                    }),
+                );
+            }
+            // hook_started, hook_response, etc. are ignored (internal to CLI)
+            _ => {}
         }
-        // hook_started and hook_response are ignored (internal to CLI)
     }
 
     /// Handle unwrapped API streaming events (message_start, content_block_delta, etc.)

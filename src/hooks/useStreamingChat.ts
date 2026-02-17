@@ -38,6 +38,10 @@ interface UsageUpdateEvent {
   };
 }
 
+interface CompactionEvent {
+  sessionId: string;
+}
+
 /**
  * Hook that subscribes to all Claude streaming events and updates stores.
  * Should be mounted once at the app level.
@@ -47,6 +51,7 @@ export function useStreamingChat() {
   const setStreaming = useChatStore((s) => s.setStreaming);
   const resetStreamingText = useChatStore((s) => s.resetStreamingText);
   const addMessage = useChatStore((s) => s.addMessage);
+  const incrementCompaction = useChatStore((s) => s.incrementCompaction);
   const updateSession = useSessionStore((s) => s.updateSession);
   const setActivityState = useSessionStore((s) => s.setActivityState);
   const activeSessionId = useSessionStore((s) => s.activeSessionId);
@@ -164,6 +169,16 @@ export function useStreamingChat() {
       }),
     );
 
+    // Compaction events — context was compressed
+    unlisteners.push(
+      listen<CompactionEvent>("claude:compaction", (event) => {
+        const { sessionId } = event.payload;
+        if (sessionId === activeSessionId) {
+          incrementCompaction();
+        }
+      }),
+    );
+
     return () => {
       unlisteners.forEach((p) => p.then((unlisten) => unlisten()));
     };
@@ -173,6 +188,7 @@ export function useStreamingChat() {
     setStreaming,
     resetStreamingText,
     addMessage,
+    incrementCompaction,
     updateSession,
     setActivityState,
   ]);

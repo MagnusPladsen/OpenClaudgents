@@ -16,7 +16,6 @@ import { ToastContainer } from "../common/Toast";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { invoke } from "@tauri-apps/api/core";
 import { killSession, createSession, gitRestoreToCommit } from "../../lib/tauri";
 import { parseSlashCommand, SLASH_COMMANDS } from "../../lib/commands";
 import { executeCommand } from "../../lib/commandHandlers";
@@ -135,7 +134,6 @@ export function AppShell() {
   // Handle rewind action from RewindDialog
   const handleRewind = useCallback((messageIndex: number, action: string) => {
     const messages = useChatStore.getState().messages;
-    const session = useSessionStore.getState().getActiveSession();
 
     if (action === "restore_conversation" || action === "restore_all") {
       // Remove all messages after the selected checkpoint
@@ -146,21 +144,15 @@ export function AppShell() {
     }
 
     if (action === "restore_code" || action === "restore_all") {
-      // Attempt to restore code via git — best-effort
-      if (session) {
-        const path = session.worktreePath || session.projectPath;
-        // Git restore is best-effort: stash current changes, then checkout
-        invoke("git_restore_checkpoint", { path, messageIndex }).catch((err: unknown) => {
-          addMessage({
-            uuid: crypto.randomUUID(),
-            parentUuid: null,
-            role: "system",
-            content: `Code restore not available: ${err}`,
-            timestamp: new Date().toISOString(),
-            isSidechain: false,
-          });
-        });
-      }
+      // Code restore from rewind is not yet supported — use /restore for git-based restore
+      addMessage({
+        uuid: crypto.randomUUID(),
+        parentUuid: null,
+        role: "system",
+        content: "Code restore from rewind is not yet supported. Use `/restore` to restore to a specific git commit.",
+        timestamp: new Date().toISOString(),
+        isSidechain: false,
+      });
     }
 
     if (action === "summarize") {

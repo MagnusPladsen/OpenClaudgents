@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ToolCallBlock } from "./ToolCallBlock";
 import type { ChatMessage, ContentBlock } from "../../lib/types";
+import type { Components } from "react-markdown";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -9,7 +12,6 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
-  const [copied, setCopied] = useState(false);
 
   // Asymmetric bubble shapes
   const bubbleShape = isSystem
@@ -48,7 +50,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Message content */}
         <div className="text-sm leading-relaxed">
-          <MessageContent content={message.content} copied={copied} onCopy={setCopied} />
+          <MessageContent content={message.content} />
         </div>
 
         {/* Tool calls */}
@@ -78,24 +80,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-function MessageContent({
-  content,
-  copied,
-  onCopy,
-}: {
-  content: string | ContentBlock[];
-  copied: boolean;
-  onCopy: (v: boolean) => void;
-}) {
+function MessageContent({ content }: { content: string | ContentBlock[] }) {
   if (typeof content === "string") {
-    return <FormattedText text={content} copied={copied} onCopy={onCopy} />;
+    return <MarkdownRenderer text={content} />;
   }
 
   return (
     <>
       {content.map((block, i) => {
         if (block.type === "text" && block.text) {
-          return <FormattedText key={i} text={block.text} copied={copied} onCopy={onCopy} />;
+          return <MarkdownRenderer key={i} text={block.text} />;
         }
         if (block.type === "tool_use") {
           return (
@@ -110,75 +104,175 @@ function MessageContent({
   );
 }
 
-function FormattedText({
-  text,
-  copied,
-  onCopy,
-}: {
-  text: string;
-  copied: boolean;
-  onCopy: (v: boolean) => void;
-}) {
-  // Simple markdown-like formatting for code blocks
-  const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+function MarkdownRenderer({ text }: { text: string }) {
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-  const handleCopy = (code: string) => {
+  const handleCopy = useCallback((code: string, index: number) => {
     navigator.clipboard.writeText(code).then(() => {
-      onCopy(true);
-      setTimeout(() => onCopy(false), 2000);
+      setCopiedIndex(index);
+      setTimeout(() => setCopiedIndex(null), 2000);
     });
+  }, []);
+
+  // Track code block index for copy button state
+  let codeBlockCounter = 0;
+
+  const components: Components = {
+    // Code blocks and inline code
+    code({ className, children, ...props }) {
+      const match = /language-(\w+)/.exec(className || "");
+      const codeString = String(children).replace(/\n$/, "");
+
+      // Check if this is a block-level code (has language class or is inside pre)
+      const isBlock = Boolean(match) || (typeof children === "string" && children.includes("\n"));
+      if (isBlock || match) {
+        const lang = match?.[1] || "code";
+        const blockIndex = codeBlockCounter++;
+        return (
+          <div className="group/code relative my-3 overflow-hidden rounded-xl border border-white/5">
+            <div className="flex items-center justify-between border-b border-white/5 bg-code-bg px-3 py-1.5">
+              <span className="font-mono text-[10px] font-medium text-text-muted">
+                {lang}
+              </span>
+              <button
+                onClick={() => handleCopy(codeString, blockIndex)}
+                className="rounded px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-all hover:bg-bg-tertiary hover:text-text group-hover/code:opacity-100"
+              >
+                {copiedIndex === blockIndex ? "Copied!" : "Copy"}
+              </button>
+            </div>
+            <pre className="overflow-x-auto bg-code-bg p-3 font-mono text-xs leading-relaxed">
+              <code className={className} {...props}>{children}</code>
+            </pre>
+          </div>
+        );
+      }
+
+      // Inline code
+      return (
+        <code className="rounded bg-code-bg px-1.5 py-0.5 font-mono text-xs text-accent" {...props}>
+          {children}
+        </code>
+      );
+    },
+
+    // Prevent wrapping code blocks in an extra <pre>
+    pre({ children }) {
+      return <>{children}</>;
+    },
+
+    // Headings
+    h1({ children }) {
+      return <h1 className="mb-3 mt-4 text-lg font-bold text-text first:mt-0">{children}</h1>;
+    },
+    h2({ children }) {
+      return <h2 className="mb-2 mt-3 text-base font-semibold text-text first:mt-0">{children}</h2>;
+    },
+    h3({ children }) {
+      return <h3 className="mb-2 mt-3 text-sm font-semibold text-text first:mt-0">{children}</h3>;
+    },
+    h4({ children }) {
+      return <h4 className="mb-1 mt-2 text-sm font-medium text-text first:mt-0">{children}</h4>;
+    },
+
+    // Paragraphs
+    p({ children }) {
+      return <p className="mb-2 last:mb-0">{children}</p>;
+    },
+
+    // Lists
+    ul({ children }) {
+      return <ul className="mb-2 ml-4 list-disc space-y-1">{children}</ul>;
+    },
+    ol({ children }) {
+      return <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>;
+    },
+    li({ children }) {
+      return <li className="text-text">{children}</li>;
+    },
+
+    // Links
+    a({ href, children }) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline decoration-accent/30 underline-offset-2 transition-colors hover:decoration-accent"
+        >
+          {children}
+        </a>
+      );
+    },
+
+    // Blockquotes
+    blockquote({ children }) {
+      return (
+        <blockquote className="my-2 border-l-2 border-accent/40 pl-3 text-text-secondary">
+          {children}
+        </blockquote>
+      );
+    },
+
+    // Horizontal rules
+    hr() {
+      return <hr className="my-3 border-border" />;
+    },
+
+    // Tables
+    table({ children }) {
+      return (
+        <div className="my-3 overflow-x-auto rounded-lg border border-white/5">
+          <table className="w-full text-xs">{children}</table>
+        </div>
+      );
+    },
+    thead({ children }) {
+      return <thead className="bg-code-bg text-text-muted">{children}</thead>;
+    },
+    tbody({ children }) {
+      return <tbody className="divide-y divide-white/5">{children}</tbody>;
+    },
+    tr({ children }) {
+      return <tr className="border-b border-white/5 last:border-0">{children}</tr>;
+    },
+    th({ children }) {
+      return <th className="px-3 py-1.5 text-left font-medium">{children}</th>;
+    },
+    td({ children }) {
+      return <td className="px-3 py-1.5">{children}</td>;
+    },
+
+    // Strong & emphasis
+    strong({ children }) {
+      return <strong className="font-semibold text-text">{children}</strong>;
+    },
+    em({ children }) {
+      return <em className="italic text-text-secondary">{children}</em>;
+    },
+
+    // Strikethrough (from remark-gfm)
+    del({ children }) {
+      return <del className="text-text-muted line-through">{children}</del>;
+    },
+
+    // Images
+    img({ src, alt }) {
+      return (
+        <img
+          src={src}
+          alt={alt || ""}
+          className="my-2 max-w-full rounded-lg"
+          loading="lazy"
+        />
+      );
+    },
   };
 
   return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith("```") && part.endsWith("```")) {
-          const firstNewline = part.indexOf("\n");
-          const lang = firstNewline > 3 ? part.slice(3, firstNewline).trim() : "";
-          const code = firstNewline > 0 ? part.slice(firstNewline + 1, -3) : part.slice(3, -3);
-          return (
-            <div key={i} className="group/code relative my-3 overflow-hidden rounded-xl border border-white/5">
-              {/* Code header bar */}
-              <div className="flex items-center justify-between border-b border-white/5 bg-code-bg px-3 py-1.5">
-                <span className="font-mono text-[10px] font-medium text-text-muted">
-                  {lang || "code"}
-                </span>
-                <button
-                  onClick={() => handleCopy(code)}
-                  className="rounded px-1.5 py-0.5 text-[10px] text-text-muted opacity-0 transition-all hover:bg-bg-tertiary hover:text-text group-hover/code:opacity-100"
-                >
-                  {copied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-              <pre className="overflow-x-auto bg-code-bg p-3 font-mono text-xs leading-relaxed">
-                <code>{code}</code>
-              </pre>
-            </div>
-          );
-        }
-        if (part.startsWith("`") && part.endsWith("`")) {
-          return (
-            <code
-              key={i}
-              className="rounded bg-code-bg px-1.5 py-0.5 font-mono text-xs text-accent"
-            >
-              {part.slice(1, -1)}
-            </code>
-          );
-        }
-        // Preserve newlines in regular text
-        return (
-          <span key={i}>
-            {part.split("\n").map((line, j, arr) => (
-              <span key={j}>
-                {line}
-                {j < arr.length - 1 && <br />}
-              </span>
-            ))}
-          </span>
-        );
-      })}
-    </>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      {text}
+    </ReactMarkdown>
   );
 }
 
