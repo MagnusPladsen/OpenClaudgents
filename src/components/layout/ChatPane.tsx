@@ -186,8 +186,41 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
     );
   }
 
+  const activeSession = useSessionStore((s) =>
+    s.sessions.find((sess) => sess.id === s.activeSessionId),
+  );
+
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-bg" aria-label="Chat">
+      {/* Session header bar */}
+      {activeSession && (
+        <div className="relative flex items-center gap-3 border-b border-border/40 px-6 py-2.5">
+          <span className="truncate text-sm font-medium text-text">
+            {activeSession.name || `Session ${activeSession.id.slice(0, 8)}`}
+          </span>
+          <span className="truncate text-xs text-text-muted">
+            {activeSession.projectPath.split("/").pop()}
+          </span>
+          {activeSession.worktreePath && (
+            <span className="flex items-center gap-1.5 rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-semibold text-info">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="6" x2="6" y1="3" y2="15" />
+                <circle cx="18" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <path d="M18 9a9 9 0 0 1-9 9" />
+              </svg>
+              Worktree
+            </span>
+          )}
+          {activeSession.model && (
+            <span className="ml-auto rounded-full bg-bg-tertiary/60 px-2 py-0.5 text-[10px] font-medium text-text-muted">
+              {activeSession.model}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Messages */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <MessageList messages={messages} />
