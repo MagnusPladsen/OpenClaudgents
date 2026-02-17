@@ -9,7 +9,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AgentNode, type AgentNodeData } from "./AgentNode";
-import type { AgentTeam } from "../../lib/types";
+import { useSessionStore } from "../../stores/sessionStore";
+import type { AgentTeam, Session } from "../../lib/types";
 
 interface AgentGraphProps {
   team: AgentTeam | null;
@@ -18,7 +19,26 @@ interface AgentGraphProps {
 
 const nodeTypes = { agent: AgentNode };
 
+/** Map session activity/status to AgentStatusBadge status */
+function resolveAgentStatus(session: Session | undefined): AgentNodeData["status"] {
+  if (!session) return "idle";
+  if (session.status === "error") return "error";
+  if (session.status === "completed") return "shutdown";
+  switch (session.activityState) {
+    case "thinking":
+    case "streaming":
+    case "tool_running":
+      return "working";
+    case "awaiting_input":
+      return "waiting";
+    default:
+      return "idle";
+  }
+}
+
 export function AgentGraph({ team, onNodeClick }: AgentGraphProps) {
+  const sessions = useSessionStore((s) => s.sessions);
+
   const { nodes, edges } = useMemo(() => {
     if (!team || team.members.length === 0) {
       return { nodes: [], edges: [] };
@@ -30,8 +50,19 @@ export function AgentGraph({ team, onNodeClick }: AgentGraphProps) {
     const nodeList: Node[] = [];
     const edgeList: Edge[] = [];
 
+    // Helper to find a session matching an agent member
+    const findSession = (agentId: string) =>
+      sessions.find((s) => s.id === agentId || s.claudeSessionId === agentId);
+
+    // Track if any agent is actively working (for edge animation)
+    let anyWorking = false;
+
     // Lead node at top center
     if (lead) {
+      const session = findSession(lead.agentId);
+      const status = resolveAgentStatus(session);
+      if (status === "working") anyWorking = true;
+
       const leadNode: Node = {
         id: lead.agentId || "lead",
         type: "agent",
@@ -40,7 +71,7 @@ export function AgentGraph({ team, onNodeClick }: AgentGraphProps) {
           name: lead.name,
           role: "lead",
           agentType: lead.agentType,
-          status: "idle",
+          status,
         } satisfies AgentNodeData as unknown as Record<string, unknown>,
       };
       nodeList.push(leadNode);
@@ -53,6 +84,10 @@ export function AgentGraph({ team, onNodeClick }: AgentGraphProps) {
 
     teammates.forEach((member, i) => {
       const nodeId = member.agentId || `teammate-${i}`;
+      const session = findSession(member.agentId);
+      const status = resolveAgentStatus(session);
+      if (status === "working") anyWorking = true;
+
       const teammateNode: Node = {
         id: nodeId,
         type: "agent",
@@ -61,25 +96,25 @@ export function AgentGraph({ team, onNodeClick }: AgentGraphProps) {
           name: member.name,
           role: "teammate",
           agentType: member.agentType,
-          status: "idle",
+          status,
         } satisfies AgentNodeData as unknown as Record<string, unknown>,
       };
       nodeList.push(teammateNode);
 
-      // Edge from lead to teammate
+      // Edge from lead to teammate — animate only when agents are active
       if (lead) {
         edgeList.push({
           id: `edge-${lead.agentId || "lead"}-${nodeId}`,
           source: lead.agentId || "lead",
           target: nodeId,
-          animated: true,
+          animated: anyWorking,
           style: { stroke: "var(--color-accent, #7aa2f7)" },
         });
       }
     });
 
     return { nodes: nodeList, edges: edgeList };
-  }, [team]);
+  }, [team, sessions]);
 
   if (!team) {
     return (
