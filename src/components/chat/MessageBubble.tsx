@@ -12,6 +12,15 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMessage = useCallback(() => {
+    const text = extractTextContent(message.content);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [message.content]);
 
   // Asymmetric bubble shapes
   const bubbleShape = isSystem
@@ -32,7 +41,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
       )}
 
       <div
-        className={`max-w-[75%] px-5 py-4 transition-all duration-200 ${bubbleShape} ${
+        className={`relative max-w-[75%] px-5 py-4 transition-all duration-200 ${bubbleShape} ${
           isSystem
             ? "bg-error/10 text-text"
             : isUser
@@ -40,6 +49,17 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               : "border border-white/5 bg-assistant-bubble text-text"
         } ${message.isStreaming ? "border border-accent/30" : ""}`}
       >
+        {/* Copy button — hover only */}
+        {!message.isStreaming && !isSystem && (
+          <button
+            onClick={handleCopyMessage}
+            className="absolute -top-3 right-2 rounded-md bg-bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-text-muted opacity-0 shadow-sm transition-all hover:text-text group-hover:opacity-100"
+            title="Copy message"
+          >
+            {copied ? "Copied!" : "Copy"}
+          </button>
+        )}
+
         {/* Streaming pulse indicator */}
         {message.isStreaming && (
           <div className="mb-2 flex items-center gap-2">
@@ -274,6 +294,14 @@ function MarkdownRenderer({ text }: { text: string }) {
       {text}
     </ReactMarkdown>
   );
+}
+
+function extractTextContent(content: string | ContentBlock[]): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((block) => block.type === "text" && block.text)
+    .map((block) => block.text!)
+    .join("\n\n");
 }
 
 function formatTime(timestamp: string): string {
