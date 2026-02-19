@@ -258,7 +258,7 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
         {showSearch && (
           <ChatSearchBar onClose={() => setShowSearch(false)} />
         )}
-        <MessageList messages={messages} searchQuery={searchQuery} />
+        <MessageList messages={messages} searchQuery={showSearch ? searchQuery : undefined} />
       </div>
 
       {/* Message input */}
