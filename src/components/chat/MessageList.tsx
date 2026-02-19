@@ -6,9 +6,10 @@ import type { ChatMessage } from "../../lib/types";
 
 interface MessageListProps {
   messages: ChatMessage[];
+  searchQuery?: string;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, searchQuery }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const streamingText = useChatStore((s) => s.streamingText);
@@ -37,10 +38,11 @@ export function MessageList({ messages }: MessageListProps) {
       {messages.map((msg, i) => (
         <div
           key={msg.uuid}
+          data-message-id={msg.uuid}
           className="animate-stagger-in"
           style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}
         >
-          <MessageBubble message={msg} />
+          <MessageBubble message={msg} searchQuery={searchQuery} />
         </div>
       ))}
 

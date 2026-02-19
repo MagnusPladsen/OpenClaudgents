@@ -25,6 +25,7 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
   const isStreaming = useChatStore((s) => s.isStreaming);
   const autoWorktree = useSettingsStore((s) => s.autoWorktree);
   const addToast = useToastStore((s) => s.addToast);
+  const searchQuery = useChatStore((s) => s.searchQuery);
   const searchMatchIds = useChatStore((s) => s.searchMatchIds);
   const searchCurrentIndex = useChatStore((s) => s.searchCurrentIndex);
   const clearSearch = useChatStore((s) => s.clearSearch);
@@ -257,7 +258,7 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
         {showSearch && (
           <ChatSearchBar onClose={() => setShowSearch(false)} />
         )}
-        <MessageList messages={messages} />
+        <MessageList messages={messages} searchQuery={searchQuery} />
       </div>
 
       {/* Message input */}
