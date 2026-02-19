@@ -62,7 +62,7 @@ export function ChatSearchBar({ onClose }: ChatSearchBarProps) {
   }, []);
 
   return (
-    <div className="absolute top-0 right-0 left-0 z-10 flex items-center gap-2 border-b border-border bg-bg-secondary px-4 py-2 shadow-sm">
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-bg-secondary px-4 py-2 shadow-sm">
       {/* Search icon */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
