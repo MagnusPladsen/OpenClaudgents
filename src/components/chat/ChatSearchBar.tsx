@@ -61,6 +61,13 @@ export function ChatSearchBar({ onClose }: ChatSearchBarProps) {
     inputRef.current?.focus();
   }, []);
 
+  // Re-run search when messages change (e.g., new messages arrive while searching)
+  useEffect(() => {
+    if (localQuery.trim()) {
+      setSearchQuery(localQuery, messages);
+    }
+  }, [messages.length, localQuery, setSearchQuery, messages]);
+
   return (
     <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-bg-secondary px-4 py-2 shadow-sm">
       {/* Search icon */}
