@@ -4,12 +4,14 @@ import remarkGfm from "remark-gfm";
 import { ToolCallBlock } from "./ToolCallBlock";
 import type { ChatMessage, ContentBlock } from "../../lib/types";
 import type { Components } from "react-markdown";
+import type { ReactNode } from "react";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  searchQuery?: string;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, searchQuery }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isSystem = message.role === "system";
   const [copied, setCopied] = useState(false);
@@ -80,7 +82,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Message content */}
         <div className="text-sm leading-relaxed">
-          <MessageContent content={message.content} />
+          <MessageContent content={message.content} searchQuery={searchQuery} />
         </div>
 
         {/* Tool calls */}
@@ -110,16 +112,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-function MessageContent({ content }: { content: string | ContentBlock[] }) {
+function MessageContent({ content, searchQuery }: { content: string | ContentBlock[]; searchQuery?: string }) {
   if (typeof content === "string") {
-    return <MarkdownRenderer text={content} />;
+    return <MarkdownRenderer text={content} highlight={searchQuery} />;
   }
 
   return (
     <>
       {content.map((block, i) => {
         if (block.type === "text" && block.text) {
-          return <MarkdownRenderer key={i} text={block.text} />;
+          return <MarkdownRenderer key={i} text={block.text} highlight={searchQuery} />;
         }
         if (block.type === "tool_use") {
           return (
@@ -134,7 +136,7 @@ function MessageContent({ content }: { content: string | ContentBlock[] }) {
   );
 }
 
-function MarkdownRenderer({ text }: { text: string }) {
+function MarkdownRenderer({ text, highlight }: { text: string; highlight?: string }) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   const handleCopy = useCallback((code: string, index: number) => {
@@ -143,6 +145,26 @@ function MarkdownRenderer({ text }: { text: string }) {
       setTimeout(() => setCopiedIndex(null), 2000);
     });
   }, []);
+
+  const wrapHighlight = useCallback(
+    (children: ReactNode): ReactNode => {
+      if (!highlight) return children;
+      if (typeof children === "string") {
+        return <HighlightedText text={children} query={highlight} />;
+      }
+      if (Array.isArray(children)) {
+        return children.map((child, i) =>
+          typeof child === "string" ? (
+            <HighlightedText key={i} text={child} query={highlight} />
+          ) : (
+            child
+          ),
+        );
+      }
+      return children;
+    },
+    [highlight],
+  );
 
   // Track code block index for copy button state
   let codeBlockCounter = 0;
@@ -193,21 +215,21 @@ function MarkdownRenderer({ text }: { text: string }) {
 
     // Headings
     h1({ children }) {
-      return <h1 className="mb-3 mt-4 text-lg font-bold text-text first:mt-0">{children}</h1>;
+      return <h1 className="mb-3 mt-4 text-lg font-bold text-text first:mt-0">{wrapHighlight(children)}</h1>;
     },
     h2({ children }) {
-      return <h2 className="mb-2 mt-3 text-base font-semibold text-text first:mt-0">{children}</h2>;
+      return <h2 className="mb-2 mt-3 text-base font-semibold text-text first:mt-0">{wrapHighlight(children)}</h2>;
     },
     h3({ children }) {
-      return <h3 className="mb-2 mt-3 text-sm font-semibold text-text first:mt-0">{children}</h3>;
+      return <h3 className="mb-2 mt-3 text-sm font-semibold text-text first:mt-0">{wrapHighlight(children)}</h3>;
     },
     h4({ children }) {
-      return <h4 className="mb-1 mt-2 text-sm font-medium text-text first:mt-0">{children}</h4>;
+      return <h4 className="mb-1 mt-2 text-sm font-medium text-text first:mt-0">{wrapHighlight(children)}</h4>;
     },
 
     // Paragraphs
     p({ children }) {
-      return <p className="mb-2 last:mb-0">{children}</p>;
+      return <p className="mb-2 last:mb-0">{wrapHighlight(children)}</p>;
     },
 
     // Lists
@@ -218,7 +240,7 @@ function MarkdownRenderer({ text }: { text: string }) {
       return <ol className="mb-2 ml-4 list-decimal space-y-1">{children}</ol>;
     },
     li({ children }) {
-      return <li className="text-text">{children}</li>;
+      return <li className="text-text">{wrapHighlight(children)}</li>;
     },
 
     // Links
@@ -239,7 +261,7 @@ function MarkdownRenderer({ text }: { text: string }) {
     blockquote({ children }) {
       return (
         <blockquote className="my-2 border-l-2 border-accent/40 pl-3 text-text-secondary">
-          {children}
+          {wrapHighlight(children)}
         </blockquote>
       );
     },
@@ -267,23 +289,23 @@ function MarkdownRenderer({ text }: { text: string }) {
       return <tr className="border-b border-white/5 last:border-0">{children}</tr>;
     },
     th({ children }) {
-      return <th className="px-3 py-1.5 text-left font-medium">{children}</th>;
+      return <th className="px-3 py-1.5 text-left font-medium">{wrapHighlight(children)}</th>;
     },
     td({ children }) {
-      return <td className="px-3 py-1.5">{children}</td>;
+      return <td className="px-3 py-1.5">{wrapHighlight(children)}</td>;
     },
 
     // Strong & emphasis
     strong({ children }) {
-      return <strong className="font-semibold text-text">{children}</strong>;
+      return <strong className="font-semibold text-text">{wrapHighlight(children)}</strong>;
     },
     em({ children }) {
-      return <em className="italic text-text-secondary">{children}</em>;
+      return <em className="italic text-text-secondary">{wrapHighlight(children)}</em>;
     },
 
     // Strikethrough (from remark-gfm)
     del({ children }) {
-      return <del className="text-text-muted line-through">{children}</del>;
+      return <del className="text-text-muted line-through">{wrapHighlight(children)}</del>;
     },
 
     // Images
@@ -312,6 +334,25 @@ function extractTextContent(content: string | ContentBlock[]): string {
     .filter((block) => block.type === "text" && block.text)
     .map((block) => block.text!)
     .join("\n\n");
+}
+
+function HighlightedText({ text, query }: { text: string; query: string }) {
+  if (!query) return <>{text}</>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <mark key={i} className="rounded-sm bg-warning/30 text-text">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
+  );
 }
 
 function formatTime(timestamp: string): string {
