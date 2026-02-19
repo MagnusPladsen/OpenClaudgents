@@ -9,6 +9,9 @@ interface ChatState {
   planMode: boolean;
   pendingToolCalls: ToolCall[];
   currentToolInputBuffer: string;
+  searchQuery: string;
+  searchMatchIds: string[];
+  searchCurrentIndex: number;
   setMessages: (messages: ChatMessage[]) => void;
   addMessage: (message: ChatMessage) => void;
   updateMessage: (uuid: string, updates: Partial<ChatMessage>) => void;
@@ -22,6 +25,10 @@ interface ChatState {
   startToolCall: (id: string, name: string) => void;
   appendToolInput: (partialJson: string) => void;
   flushPendingToolCalls: () => ToolCall[];
+  setSearchQuery: (query: string, messages: ChatMessage[]) => void;
+  clearSearch: () => void;
+  nextMatch: () => void;
+  prevMatch: () => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -32,6 +39,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   planMode: false,
   pendingToolCalls: [],
   currentToolInputBuffer: "",
+  searchQuery: "",
+  searchMatchIds: [],
+  searchCurrentIndex: -1,
 
   setMessages: (messages) => set({ messages }),
 
@@ -53,7 +63,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
   resetStreamingText: () => set({ streamingText: "" }),
 
   clearMessages: () =>
-    set({ messages: [], streamingText: "", compactionCount: 0, pendingToolCalls: [], currentToolInputBuffer: "" }),
+    set({
+      messages: [],
+      streamingText: "",
+      compactionCount: 0,
+      pendingToolCalls: [],
+      currentToolInputBuffer: "",
+      searchQuery: "",
+      searchMatchIds: [],
+      searchCurrentIndex: -1,
+    }),
 
   incrementCompaction: () =>
     set((state) => ({ compactionCount: state.compactionCount + 1 })),
@@ -103,4 +122,51 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ pendingToolCalls: [], currentToolInputBuffer: "" });
     return tools;
   },
+
+  setSearchQuery: (query, messages) => {
+    if (!query.trim()) {
+      set({ searchQuery: "", searchMatchIds: [], searchCurrentIndex: -1 });
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    const matchIds = messages
+      .filter((m) => {
+        const text =
+          typeof m.content === "string"
+            ? m.content
+            : m.content
+                .filter((b) => b.type === "text" && b.text)
+                .map((b) => b.text!)
+                .join(" ");
+        return text.toLowerCase().includes(lowerQuery);
+      })
+      .map((m) => m.uuid);
+    set({
+      searchQuery: query,
+      searchMatchIds: matchIds,
+      searchCurrentIndex: matchIds.length > 0 ? 0 : -1,
+    });
+  },
+
+  clearSearch: () =>
+    set({ searchQuery: "", searchMatchIds: [], searchCurrentIndex: -1 }),
+
+  nextMatch: () =>
+    set((state) => {
+      if (state.searchMatchIds.length === 0) return state;
+      return {
+        searchCurrentIndex:
+          (state.searchCurrentIndex + 1) % state.searchMatchIds.length,
+      };
+    }),
+
+  prevMatch: () =>
+    set((state) => {
+      if (state.searchMatchIds.length === 0) return state;
+      return {
+        searchCurrentIndex:
+          (state.searchCurrentIndex - 1 + state.searchMatchIds.length) %
+          state.searchMatchIds.length,
+      };
+    }),
 }));
