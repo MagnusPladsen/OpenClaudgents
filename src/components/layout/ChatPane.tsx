@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useChatStore } from "../../stores/chatStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -8,6 +8,7 @@ import { MessageList } from "../chat/MessageList";
 import { Composer } from "../chat/Composer";
 import { WelcomeScreen } from "../chat/WelcomeScreen";
 import { WorktreeDialog } from "../common/WorktreeDialog";
+import { ChatSearchBar } from "../chat/ChatSearchBar";
 
 interface ChatPaneProps {
   welcomeKey?: number;
@@ -24,6 +25,10 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
   const isStreaming = useChatStore((s) => s.isStreaming);
   const autoWorktree = useSettingsStore((s) => s.autoWorktree);
   const addToast = useToastStore((s) => s.addToast);
+  const searchMatchIds = useChatStore((s) => s.searchMatchIds);
+  const searchCurrentIndex = useChatStore((s) => s.searchCurrentIndex);
+  const clearSearch = useChatStore((s) => s.clearSearch);
+  const [showSearch, setShowSearch] = useState(false);
   const [welcomeError, setWelcomeError] = useState<string | null>(null);
   const [pendingProjectPath, setPendingProjectPath] = useState<string | null>(null);
   const [conflictSessionName, setConflictSessionName] = useState("");
@@ -164,6 +169,32 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
     [activeSessionId, addMessage, onSlashCommand],
   );
 
+  // Cmd+F to toggle search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        setShowSearch((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  // Scroll to current match
+  useEffect(() => {
+    if (searchCurrentIndex < 0 || searchMatchIds.length === 0) return;
+    const targetId = searchMatchIds[searchCurrentIndex];
+    const el = document.querySelector(`[data-message-id="${targetId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [searchCurrentIndex, searchMatchIds]);
+
+  // Clear search when switching sessions
+  useEffect(() => {
+    setShowSearch(false);
+    clearSearch();
+  }, [activeSessionId, clearSearch]);
+
   if (!activeSessionId) {
     return (
       <div className="flex flex-1 flex-col">
@@ -222,7 +253,10 @@ export function ChatPane({ welcomeKey, onSlashCommand }: ChatPaneProps) {
       )}
 
       {/* Messages */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto">
+        {showSearch && (
+          <ChatSearchBar onClose={() => setShowSearch(false)} />
+        )}
         <MessageList messages={messages} />
       </div>
 
