@@ -1,3 +1,5 @@
+![Built by AI](https://img.shields.io/badge/built%20with-AI%20assistance-blue)
+
 # OpenClaudgents
 
 [![Build & Check](https://github.com/magnuspladsen/OpenClaudgents/actions/workflows/build.yml/badge.svg)](https://github.com/magnuspladsen/OpenClaudgents/actions/workflows/build.yml)
